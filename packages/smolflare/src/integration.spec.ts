@@ -1,4 +1,5 @@
 import { Readable } from "node:stream";
+import { setTimeout as delay } from "node:timers/promises";
 import { afterEach, it } from "vitest";
 import { createR2BlobFetcher } from "./fetcher";
 import type {
@@ -27,11 +28,14 @@ const { Miniflare } = require("miniflare") as {
 class MemoryBlobStorage implements BlobStorage {
 	readonly objects = new Map<string, Buffer>();
 
+	constructor(readonly putDelay = 0) {}
+
 	async put(key: string, body: Readable): Promise<void> {
 		const chunks: Buffer[] = [];
 		for await (const chunk of body) {
 			chunks.push(Buffer.from(chunk));
 		}
+		await delay(this.putDelay);
 		this.objects.set(key, Buffer.concat(chunks));
 	}
 
@@ -65,8 +69,8 @@ afterEach(async () => {
 	await Promise.all(runtimes.splice(0).map((runtime) => runtime.dispose()));
 });
 
-it("stores R2 blob bytes outside Miniflare", async ({ expect }) => {
-	const storage = new MemoryBlobStorage();
+it("waits for external R2 blob writes", async ({ expect }) => {
+	const storage = new MemoryBlobStorage(100);
 	const runtime = new Miniflare({
 		r2BlobStorage: {
 			type: "custom",

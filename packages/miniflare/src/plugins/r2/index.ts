@@ -56,10 +56,23 @@ const R2_BUCKET_OBJECT: Worker_Binding_DurableObjectNamespaceDesignator = {
 };
 
 const SCRIPT_R2_CUSTOM_BLOB_STORAGE = `addEventListener("fetch", (event) => {
-  const request = new Request(event.request);
-  request.headers.set("${CoreHeaders.R2_BLOB_STORAGE}", "true");
-  request.headers.set("${CoreHeaders.ORIGINAL_URL}", request.url);
-  event.respondWith(${CoreBindings.SERVICE_LOOPBACK}.fetch(request));
+  event.respondWith((async () => {
+    let body;
+    let bodyPump = Promise.resolve();
+    if (event.request.body !== null) {
+      const stream = new TransformStream();
+      bodyPump = event.request.body.pipeTo(stream.writable);
+      body = stream.readable;
+    }
+    const request = new Request(event.request, { body });
+    request.headers.set("${CoreHeaders.R2_BLOB_STORAGE}", "true");
+    request.headers.set("${CoreHeaders.ORIGINAL_URL}", request.url);
+    const [response] = await Promise.all([
+      ${CoreBindings.SERVICE_LOOPBACK}.fetch(request),
+      bodyPump,
+    ]);
+    return response;
+  })());
 })`;
 
 export function getR2PublicService(
