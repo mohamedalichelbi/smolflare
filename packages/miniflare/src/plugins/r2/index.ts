@@ -3,7 +3,7 @@ import SCRIPT_R2_BUCKET_OBJECT from "worker:r2/bucket";
 import SCRIPT_R2_PUBLIC from "worker:r2/public";
 import SCRIPT_R2_S3 from "worker:r2/s3/index";
 import { MiniflareCoreError } from "../../shared";
-import { SharedBindings } from "../../workers";
+import { CoreBindings, CoreHeaders, SharedBindings } from "../../workers";
 import { R2S3Bindings } from "../../workers/r2/constants";
 import {
 	buildObjectEntryProps,
@@ -17,6 +17,7 @@ import {
 	ProxyNodeBinding,
 	remoteProxyClientWorker,
 	SERVICE_LOOPBACK,
+	WORKER_BINDING_SERVICE_LOOPBACK,
 } from "../shared";
 import type {
 	Service,
@@ -39,6 +40,7 @@ type R2S3Credentials = NonNullable<
 
 export const R2_PLUGIN_NAME = "r2";
 const R2_STORAGE_SERVICE_NAME = `${R2_PLUGIN_NAME}:storage`;
+const R2_BLOB_STORAGE_SERVICE_NAME = `${R2_PLUGIN_NAME}:blob-storage`;
 const R2_BUCKET_SERVICE_PREFIX = `${R2_PLUGIN_NAME}:bucket`;
 // A single entry service shared by every *local* bucket. Each bucket's id is
 // supplied per-binding via `ctx.props`, so one service serves all of them.
@@ -52,6 +54,13 @@ const R2_BUCKET_OBJECT: Worker_Binding_DurableObjectNamespaceDesignator = {
 	serviceName: R2_BUCKET_SERVICE_PREFIX,
 	className: R2_BUCKET_OBJECT_CLASS_NAME,
 };
+
+const SCRIPT_R2_CUSTOM_BLOB_STORAGE = `addEventListener("fetch", (event) => {
+  const request = new Request(event.request);
+  request.headers.set("${CoreHeaders.R2_BLOB_STORAGE}", "true");
+  request.headers.set("${CoreHeaders.ORIGINAL_URL}", request.url);
+  event.respondWith(${CoreBindings.SERVICE_LOOPBACK}.fetch(request));
+})`;
 
 export function getR2PublicService(
 	allWorkerOpts: ParsedWorkerOptions[],
@@ -228,6 +237,27 @@ export const R2_PLUGIN: Plugin = {
 				name: R2_STORAGE_SERVICE_NAME,
 				disk: { path: persistPath, writable: true },
 			};
+			let blobStorageServiceName = R2_STORAGE_SERVICE_NAME;
+			const blobStorage = sharedOptions.r2BlobStorage;
+			if (blobStorage?.type === "fs" && blobStorage.path !== undefined) {
+				await fs.mkdir(blobStorage.path, { recursive: true });
+				blobStorageServiceName = R2_BLOB_STORAGE_SERVICE_NAME;
+				services.push({
+					name: blobStorageServiceName,
+					disk: { path: blobStorage.path, writable: true },
+				});
+			} else if (blobStorage?.type === "custom") {
+				blobStorageServiceName = R2_BLOB_STORAGE_SERVICE_NAME;
+				services.push({
+					name: blobStorageServiceName,
+					worker: {
+						compatibilityDate: "2025-08-04",
+						compatibilityFlags: ["connect_pass_through"],
+						serviceWorkerScript: SCRIPT_R2_CUSTOM_BLOB_STORAGE,
+						bindings: [WORKER_BINDING_SERVICE_LOOPBACK],
+					},
+				});
+			}
 			const objectService: Service = {
 				name: R2_BUCKET_SERVICE_PREFIX,
 				worker: {
@@ -251,7 +281,7 @@ export const R2_PLUGIN: Plugin = {
 					bindings: [
 						{
 							name: SharedBindings.MAYBE_SERVICE_BLOBS,
-							service: { name: R2_STORAGE_SERVICE_NAME },
+							service: { name: blobStorageServiceName },
 						},
 						{
 							name: SharedBindings.MAYBE_SERVICE_LOOPBACK,

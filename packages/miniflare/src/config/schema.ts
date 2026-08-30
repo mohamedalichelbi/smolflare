@@ -726,6 +726,19 @@ export const InstanceOptionsSchema = z.strictObject({
 	isolatedResourcePersistencePath: z.string().optional(),
 	/** Project temp directory for plugin files; relative to cwd if not absolute. */
 	resourceTmpPath: z.string().optional(),
+	/** Blob-body backend for local R2 buckets. Defaults to the filesystem. */
+	r2BlobStorage: z
+		.custom<R2BlobStorage>(
+			(value) =>
+				typeof value === "object" &&
+				value !== null &&
+				(("type" in value && value.type === "fs") ||
+					("type" in value &&
+						value.type === "custom" &&
+						"fetch" in value &&
+						typeof value.fetch === "function"))
+		)
+		.optional(),
 
 	unsafeEnableSharedStorage: z.boolean().optional(),
 
@@ -785,6 +798,22 @@ export type InstanceOptions = z.input<typeof InstanceOptionsSchema>;
 export type ParsedInstanceOptions = z.output<typeof InstanceOptionsSchema>;
 export type ParsedDevConfig = NonNullable<ParsedWorkerOptions["dev"]>;
 export type ParsedLegacyConfig = NonNullable<ParsedWorkerOptions["legacy"]>;
+
+/** Uses workerd's native disk service for R2 blob bodies. */
+export interface R2FileBlobStorage {
+	readonly type: "fs";
+	/** Optional blob directory. Defaults to the R2 persistence directory. */
+	readonly path?: string;
+}
+
+/** Implements Miniflare's R2 blob protocol in the host process. */
+export interface R2CustomBlobStorage {
+	readonly type: "custom";
+	fetch(request: Request): Awaitable<Response | globalThis.Response>;
+}
+
+/** The blob-body backend used by local R2 buckets. */
+export type R2BlobStorage = R2FileBlobStorage | R2CustomBlobStorage;
 
 // ---------------------------------------------------------------------------
 // Final Miniflare Schema

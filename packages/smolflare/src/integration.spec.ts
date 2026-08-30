@@ -1,16 +1,12 @@
-import { once } from "node:events";
-import path from "node:path";
 import { Readable } from "node:stream";
-import { afterEach, expect, it } from "vitest";
-import { SMOLFLARE_PLUGIN_NAME } from "./plugin-core";
-import { createBlobGateway } from "./server";
+import { afterEach, it } from "vitest";
+import { createR2BlobFetcher } from "./fetcher";
 import type {
 	BlobDownload,
 	BlobMetadata,
 	BlobRange,
 	BlobStorage,
 } from "./blob-storage";
-import type { Server } from "node:http";
 
 interface DisposableRuntime {
 	dispatchFetch(url: string): Promise<Response>;
@@ -21,6 +17,9 @@ interface MiniflareConstructor {
 	new (options: unknown): DisposableRuntime;
 }
 
+// Avoid loading Miniflare's generated declarations into this Node-only test's
+// type environment. The runtime shape we exercise is deliberately narrow.
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- Keep Miniflare's Worker-specific declarations out of this Node-only type environment.
 const { Miniflare } = require("miniflare") as {
 	Miniflare: MiniflareConstructor;
 };
@@ -30,7 +29,9 @@ class MemoryBlobStorage implements BlobStorage {
 
 	async put(key: string, body: Readable): Promise<void> {
 		const chunks: Buffer[] = [];
-		for await (const chunk of body) chunks.push(Buffer.from(chunk));
+		for await (const chunk of body) {
+			chunks.push(Buffer.from(chunk));
+		}
 		this.objects.set(key, Buffer.concat(chunks));
 	}
 
@@ -41,7 +42,9 @@ class MemoryBlobStorage implements BlobStorage {
 
 	async get(key: string, range?: BlobRange): Promise<BlobDownload | null> {
 		const body = this.objects.get(key);
-		if (body === undefined) return null;
+		if (body === undefined) {
+			return null;
+		}
 		const selected =
 			range === undefined ? body : body.subarray(range.start, range.end + 1);
 		return {
@@ -56,36 +59,19 @@ class MemoryBlobStorage implements BlobStorage {
 	}
 }
 
-const servers: Server[] = [];
 const runtimes: DisposableRuntime[] = [];
 
 afterEach(async () => {
 	await Promise.all(runtimes.splice(0).map((runtime) => runtime.dispose()));
-	await Promise.all(
-		servers.splice(0).map((server) => {
-			server.closeAllConnections();
-			return new Promise<void>((resolve, reject) => {
-				server.close((error) =>
-					error === undefined ? resolve() : reject(error)
-				);
-			});
-		})
-	);
 });
 
-it("stores R2 blob bytes outside Miniflare", async () => {
+it("stores R2 blob bytes outside Miniflare", async ({ expect }) => {
 	const storage = new MemoryBlobStorage();
-	const server = createBlobGateway({ storage });
-	servers.push(server);
-	server.listen(0, "127.0.0.1");
-	await once(server, "listening");
-	const address = server.address();
-	if (address === null || typeof address === "string") {
-		throw new Error("Gateway did not open a TCP port");
-	}
-
-	const pluginPackage = path.resolve(__dirname, "../dist/index.js");
 	const runtime = new Miniflare({
+		r2BlobStorage: {
+			type: "custom",
+			fetch: createR2BlobFetcher(storage),
+		},
 		workers: [
 			{
 				config: {
@@ -110,17 +96,8 @@ it("stores R2 blob bytes outside Miniflare", async () => {
 					},
 					env: {
 						BUCKET: {
-							type: "unsafe:service",
-							dev: {
-								plugin: {
-									package: pluginPackage,
-									name: SMOLFLARE_PLUGIN_NAME,
-								},
-								options: {
-									blobServiceAddress: `127.0.0.1:${address.port}`,
-									bucketName: "blueprints",
-								},
-							},
+							type: "r2",
+							name: "blueprints",
 						},
 					},
 				},
@@ -134,7 +111,9 @@ it("stores R2 blob bytes outside Miniflare", async () => {
 	expect(await response.text()).toBe("hello from Smolflare");
 	expect(storage.objects.size).toBe(1);
 	const firstObject = storage.objects.entries().next().value;
-	if (firstObject === undefined) throw new Error("Blob was not stored");
+	if (firstObject === undefined) {
+		throw new Error("Blob was not stored");
+	}
 	const [key, body] = firstObject;
 	expect(key).toMatch(/^blueprints\/blobs\/[0-9a-f]{80}$/);
 	expect(body.toString()).toBe("hello from Smolflare");

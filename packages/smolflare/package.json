@@ -1,7 +1,7 @@
 {
 	"name": "smolflare",
 	"version": "0.1.0",
-	"description": "Portable backend framework for Worker applications",
+	"description": "Portable storage and self-hosting tools for Worker applications",
 	"keywords": [
 		"cloudflare",
 		"miniflare",
@@ -9,9 +9,6 @@
 		"workers"
 	],
 	"license": "MIT OR Apache-2.0",
-	"bin": {
-		"smolflare": "dist/cli.js"
-	},
 	"files": [
 		"dist"
 	],

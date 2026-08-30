@@ -1,160 +1,87 @@
-<h1 align="center">Cloudflare Workers SDK</h1>
+# Smolflare
 
-<p align="center">
-<img src="cloudflare-workers-outline.png" alt="workers-logo" width="120px" height="120px"/>
-  <br>
-  Cloudflare Workers let you deploy serverless code instantly across the globe for exceptional performance, reliability, and scale.
-  <br>
-</p>
+Smolflare is an experimental self-hosting toolkit for Cloudflare Worker
+applications. It is maintained as a downstream distribution of Cloudflare's
+[`workers-sdk`](https://github.com/cloudflare/workers-sdk) and uses Miniflare
+and workerd as its runtime foundation.
 
-<p align="center">
-  <a href="CONTRIBUTING.md">Contribute</a>
-  ·
-  <a href="https://github.com/cloudflare/workers-sdk/issues">Submit an Issue</a>
-  ·
-  <a href="https://discord.cloudflare.com/">Join Discord</a>
-  <br>
-  <br>
-</p>
+Smolflare is not affiliated with or supported by Cloudflare.
 
-<p align="center">
-  <a href="https://www.npmjs.com/wrangler/">
-    <img src="https://img.shields.io/npm/v/wrangler.svg?logo=npm&logoColor=fff&label=NPM+package&color=orange" alt="Wrangler on npm" />
-  </a>&nbsp;
-  <a href="https://discord.cloudflare.com/">
-    <img src="https://img.shields.io/discord/595317990191398933.svg?logo=discord&logoColor=fff&label=Discord&color=7389d8" alt="Discord conversation" />
-  </a>&nbsp;
-  <a href="https://twitter.com/CloudflareDev">
-    <img src="https://img.shields.io/twitter/follow/cloudflaredev" alt="X conversation" />
-  </a>
-</p>
+## Project status
 
-<hr>
+Smolflare is under active development and is not yet a supported production
+platform.
 
-## Quick Start
+Implemented today:
 
-To get started quickly with a new project, run the command below:
+- the native R2 API backed by Miniflare's SQLite metadata implementation;
+- R2 blob bodies stored in Amazon S3 and compatible services, Google Cloud
+  Storage, or Azure Blob Storage;
+- first-class `R2FileSystem`, `R2BucketS3`, `R2BucketGCS`, and
+  `R2BucketAzureBlobStorage` implementations behind one Miniflare interface.
 
-```bash
-npm create cloudflare@latest
-# or
-pnpm create cloudflare@latest
-# or
-yarn create cloudflare@latest
+Planned work includes portable observability export, Durable Object backup and
+lifecycle management, hot/cold project storage, and production runtime
+orchestration.
+
+## Architecture
+
+Smolflare uses Miniflare's R2 implementation for the Worker-facing API. The
+internal blob storage is configurable:
+
+```text
+Worker R2 binding
+       |
+Miniflare R2 Durable Object
+       |-- SQLite metadata and multipart state --> local disk
+       `-- immutable blob bytes -----------------> R2 blob storage interface
+                                                       |-- R2FileSystem
+                                                       |-- R2BucketS3
+                                                       |-- R2BucketGCS
+                                                       `-- R2BucketAzureBlobStorage
 ```
 
-For more info, visit our [Getting Started](https://developers.cloudflare.com/workers/get-started/guide/) guide.
+Keeping metadata on local disk preserves Miniflare's transaction and indexing
+behavior. Moving immutable object bodies to bucket storage removes the largest
+source of local disk growth.
 
-## Documentation
+See [`packages/smolflare`](packages/smolflare/README.md) for configuration and
+usage.
 
-Visit the official Workers documentation [here](https://developers.cloudflare.com/workers/).
+## Security model
 
-- [Getting Started](https://developers.cloudflare.com/workers/get-started/guide/)
-- [How Workers works](https://developers.cloudflare.com/workers/reference/how-workers-works/)
-- [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/)
-- [Observability](https://developers.cloudflare.com/workers/observability/)
-- [Platform](https://developers.cloudflare.com/workers/platform/)
+Miniflare is designed primarily as a local development runtime. Smolflare does
+not turn it into a hardened multi-tenant security boundary by itself.
 
-## Directory
+Run Smolflare inside a restricted container and use a VM or equivalent sandbox
+as the outer isolation boundary. Remote bucket credentials live in the
+Miniflare host process and should be scoped to the configured bucket and prefix.
 
-| Package                                                                                                           | Description                                                                                                            | Links                                                           |
-| ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| [`wrangler`](https://github.com/cloudflare/workers-sdk/tree/main/packages/wrangler)                               | A command line tool for building [Cloudflare Workers](https://workers.cloudflare.com/).                                | [Docs](https://developers.cloudflare.com/workers/wrangler/)     |
-| [`create-cloudflare` (C3)](https://github.com/cloudflare/workers-sdk/tree/main/packages/create-cloudflare)        | A CLI for creating and deploying new applications to Cloudflare.                                                       | [Docs](https://developers.cloudflare.com/pages/get-started/c3/) |
-| [`miniflare`](https://github.com/cloudflare/workers-sdk/tree/main/packages/miniflare)                             | A simulator for developing and testing Cloudflare Workers, powered by [workerd](https://github.com/cloudflare/workerd) | [Docs](https://miniflare.dev)                                   |
-| [`chrome-devtools-patches`](https://github.com/cloudflare/workers-sdk/tree/main/packages/chrome-devtools-patches) | Cloudflare's fork of Chrome DevTools for inspecting your local or remote Workers                                       |                                                                 |
-| [`pages-shared`](https://github.com/cloudflare/workers-sdk/tree/main/packages/pages-shared)                       | Used internally to power Wrangler and Cloudflare Pages. It contains all the code that is shared between these clients. |                                                                 |
+## Data durability
 
-## Beta releases
+R2 metadata remains in local SQLite and must be backed up alongside the remote
+blob bucket. The blob objects alone are not sufficient to reconstruct an R2
+namespace because SQLite maps user-visible keys to opaque blob identifiers.
 
-Beta releases are generated by the [pkg.pr.new](https://github.com/stackblitz-labs/pkg.pr.new) tool and are updated on every commit pushed to the `main` branch.
+Deleted blob retention is deliberately conservative by default so that an
+older SQLite backup does not reference already-removed blob data. This is safe
+for recovery but grows without bound until a reachability-aware garbage
+collector is added. Do not apply a simple object-age lifecycle rule: an old
+object may still be live.
 
-> [!Warning]
-> These beta releases get updated over time, so they are ill suited to be used as stable versions for a project (and the proper npm released should be used instead). These should be used only for quick testing of not yet released features/fixes.
+## Upstream relationship
 
-Available beta releases are listed below.
+This repository contains the full Workers SDK monorepo so Smolflare can make
+small runtime integration changes while merging Cloudflare's upstream releases.
+Upstream package documentation is in the
+[Cloudflare Workers SDK repository](https://github.com/cloudflare/workers-sdk).
 
-<details><summary><b>create-cloudflare</b></summary><p>
+Smolflare-specific code lives primarily in
+[`packages/smolflare`](packages/smolflare). Runtime integration changes are
+kept narrow to reduce the cost and risk of upstream synchronization.
 
-```
-npm i https://pkg.pr.new/create-cloudflare@main
-```
+## License
 
-</p></details>
-
-<details><summary><b>@cloudflare/kv-asset-handler</b></summary><p>
-
-```
-npm i https://pkg.pr.new/@cloudflare/kv-asset-handler@main
-```
-
-</p></details>
-
-<details><summary><b>miniflare</b></summary><p>
-
-```
-npm i https://pkg.pr.new/miniflare@main
-```
-
-</p></details>
-
-<details><summary><b>@cloudflare/pages-shared</b></summary><p>
-
-```
-npm i https://pkg.pr.new/@cloudflare/pages-shared@main
-```
-
-</p></details>
-
-<details><summary><b>@cloudflare/unenv-preset</b></summary><p>
-
-```
-npm i https://pkg.pr.new/@cloudflare/unenv-preset@main
-```
-
-</p></details>
-
-<details><summary><b>@cloudflare/vite-plugin</b></summary><p>
-
-```
-npm i https://pkg.pr.new/@cloudflare/vite-plugin@main
-```
-
-</p></details>
-
-<details><summary><b>@cloudflare/vitest-plugin</b></summary><p>
-
-```
-npm i https://pkg.pr.new/@cloudflare/vitest-plugin@main
-```
-
-</p></details>
-
-<details><summary><b>@cloudflare/workers-editor-shared</b></summary><p>
-
-```
-npm i https://pkg.pr.new/@cloudflare/workers-editor-shared@main
-```
-
-</p></details>
-
-<details><summary><b>wrangler</b></summary><p>
-
-```
-npm i https://pkg.pr.new/wrangler@main
-```
-
-</p></details>
-
-## Contributing
-
-We welcome new contributors! Refer to the [`CONTRIBUTING.md`](/CONTRIBUTING.md) guide for details.
-
-## Community
-
-Join us in the official [Cloudflare Discord](https://discord.cloudflare.com/) to meet other developers, ask questions, or learn more in general.
-
-## Links
-
-- [Project Board](https://github.com/orgs/cloudflare/projects/1)
-- [Discussions](https://github.com/cloudflare/workers-sdk/discussions)
+Smolflare and the upstream Workers SDK code are available under the repository's
+MIT or Apache 2.0 licenses. See [`LICENSE-MIT`](LICENSE-MIT) and
+[`LICENSE-APACHE`](LICENSE-APACHE).

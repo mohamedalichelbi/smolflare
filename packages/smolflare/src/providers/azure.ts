@@ -49,7 +49,9 @@ export class AzureBlobStorage implements BlobStorage {
 			}
 			return { size: result.contentLength, contentType: result.contentType };
 		} catch (error) {
-			if (isMissingObject(error)) return null;
+			if (isMissingObject(error)) {
+				return null;
+			}
 			throw error;
 		}
 	}
@@ -69,7 +71,9 @@ export class AzureBlobStorage implements BlobStorage {
 				throw new Error(`Azure returned an incomplete response for ${key}`);
 			}
 			const metadata = await this.head(key);
-			if (metadata === null) return null;
+			if (metadata === null) {
+				return null;
+			}
 			return {
 				...metadata,
 				body: Readable.from(result.readableStreamBody),
@@ -77,7 +81,9 @@ export class AzureBlobStorage implements BlobStorage {
 				contentType: result.contentType,
 			};
 		} catch (error) {
-			if (isMissingObject(error)) return null;
+			if (isMissingObject(error)) {
+				return null;
+			}
 			throw error;
 		}
 	}

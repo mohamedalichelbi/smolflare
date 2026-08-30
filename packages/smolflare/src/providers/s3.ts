@@ -64,7 +64,9 @@ export class S3BlobStorage implements BlobStorage {
 			}
 			return { size: result.ContentLength, contentType: result.ContentType };
 		} catch (error) {
-			if (isMissingObject(error)) return null;
+			if (isMissingObject(error)) {
+				return null;
+			}
 			throw error;
 		}
 	}
@@ -92,7 +94,9 @@ export class S3BlobStorage implements BlobStorage {
 				size: total,
 			};
 		} catch (error) {
-			if (isMissingObject(error)) return null;
+			if (isMissingObject(error)) {
+				return null;
+			}
 			throw error;
 		}
 	}
@@ -105,9 +109,13 @@ export class S3BlobStorage implements BlobStorage {
 }
 
 function parseTotalSize(contentRange: string | undefined): number | undefined {
-	if (contentRange === undefined) return undefined;
+	if (contentRange === undefined) {
+		return undefined;
+	}
 	const match = /\/(\d+)$/.exec(contentRange);
-	if (match === null) return undefined;
+	if (match === null) {
+		return undefined;
+	}
 	const size = Number(match[1]);
 	return Number.isSafeInteger(size) ? size : undefined;
 }

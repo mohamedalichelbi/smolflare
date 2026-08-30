@@ -4,6 +4,13 @@
 	"tasks": {
 		"build": {
 			"outputs": ["dist/**"]
+		},
+		"test": {
+			"env": [
+				"GOOGLE_APPLICATION_CREDENTIALS",
+				"GOOGLE_CLOUD_PROJECT",
+				"SMOLFLARE_GCS_TEST_BUCKET"
+			]
 		}
 	}
 }
