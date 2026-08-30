@@ -110,12 +110,19 @@ export interface Plugin {
 	}): Awaitable<Extension[]>;
 }
 
+/** Built-in runtime parts available to an external plugin factory. */
+export interface ExternalPluginContext {
+	plugins: Readonly<Record<string, Plugin>>;
+	sharedBindings: Readonly<Record<string, string>>;
+}
+
 /**
  * loadExternalPlugins will take a packageName, and attempt to load additional
  * external plugins to add to Miniflare's default ones
  */
 export async function loadExternalPlugins(
-	packageName: string
+	packageName: string,
+	context: ExternalPluginContext
 ): Promise<Record<string, Plugin>> {
 	let pluginModule;
 	try {
@@ -129,13 +136,16 @@ export async function loadExternalPlugins(
 			`Package ${packageName} could not be loaded. ${error}`
 		);
 	}
-	if (!pluginModule.plugins) {
+	const plugins = pluginModule.createPlugins
+		? await pluginModule.createPlugins(context)
+		: pluginModule.plugins;
+	if (!plugins) {
 		throw new MiniflareCoreError(
 			"ERR_PLUGIN_LOADING_FAILED",
-			`Package ${packageName} did not provide any plugins.`
+			`Package ${packageName} did not provide any plugins or a createPlugins factory.`
 		);
 	}
-	return pluginModule.plugins;
+	return plugins;
 }
 
 // When an instance of this class is returned as the binding from `PluginBase#getNodeBindings()`,

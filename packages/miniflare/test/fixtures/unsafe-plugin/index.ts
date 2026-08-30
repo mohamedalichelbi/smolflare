@@ -6,6 +6,7 @@ import {
 	SharedBindings,
 } from "miniflare";
 import type {
+	ExternalPluginContext,
 	MiniflareBinding,
 	ParsedWorkerOptions,
 	Plugin,
@@ -170,3 +171,13 @@ export const plugins = {
 		},
 	} satisfies Plugin,
 };
+
+export function createPlugins(context: ExternalPluginContext) {
+	if (context.plugins.r2 === undefined) {
+		throw new Error("The built-in R2 plugin is missing");
+	}
+	if (context.sharedBindings.MAYBE_SERVICE_BLOBS === undefined) {
+		throw new Error("The shared blob binding is missing");
+	}
+	return plugins;
+}

@@ -1,0 +1,11 @@
+[tools]
+node = "22.22.1"
+"npm:pnpm" = "10.33.0"
+
+[tasks.smolflare-build]
+description = "Build the Smolflare package"
+run = "pnpm --filter smolflare build"
+
+[tasks.smolflare-test]
+description = "Test the Smolflare package"
+run = "pnpm --filter smolflare test"

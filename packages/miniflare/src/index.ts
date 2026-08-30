@@ -130,6 +130,7 @@ import {
 	LogLevel,
 	Mutex,
 	sanitisePath,
+	SharedBindings,
 	SharedHeaders,
 	SiteBindings,
 } from "./workers";
@@ -1979,7 +1980,10 @@ export class Miniflare {
 		for (const [pluginName, packageName] of requestedExternalPlugins) {
 			// Only load "new" plugins. They'll be cached across Worker reloads
 			if (!this.#externalPlugins.has(pluginName)) {
-				const providedPlugins = await loadExternalPlugins(packageName);
+				const providedPlugins = await loadExternalPlugins(packageName, {
+					plugins: Object.fromEntries(PLUGIN_ENTRIES),
+					sharedBindings: SharedBindings,
+				});
 
 				// While this package can provide multiple plugins, make sure it at least provides the requested one
 				if (!providedPlugins[pluginName]) {
