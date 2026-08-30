@@ -1,6 +1,8 @@
 /** Returns true when an SDK error represents a missing object. */
 export function isMissingObject(error: unknown): boolean {
-	if (typeof error !== "object" || error === null) return false;
+	if (typeof error !== "object" || error === null) {
+		return false;
+	}
 	const value = error as {
 		name?: unknown;
 		code?: unknown;

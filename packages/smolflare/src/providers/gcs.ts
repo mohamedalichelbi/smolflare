@@ -47,14 +47,18 @@ export class GcsBlobStorage implements BlobStorage {
 			}
 			return { size, contentType: metadata.contentType };
 		} catch (error) {
-			if (isMissingObject(error)) return null;
+			if (isMissingObject(error)) {
+				return null;
+			}
 			throw error;
 		}
 	}
 
 	async get(key: string, range?: BlobRange): Promise<BlobDownload | null> {
 		const metadata = await this.head(key);
-		if (metadata === null) return null;
+		if (metadata === null) {
+			return null;
+		}
 		const contentLength =
 			range === undefined
 				? metadata.size

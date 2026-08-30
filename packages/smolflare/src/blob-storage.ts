@@ -18,7 +18,7 @@ export interface BlobDownload extends BlobMetadata {
 	contentLength: number;
 }
 
-/** The storage contract used by the Smolflare blob gateway. */
+/** The provider contract used by Smolflare's remote R2 implementations. */
 export interface BlobStorage {
 	put(key: string, body: Readable): Promise<void>;
 	head(key: string): Promise<BlobMetadata | null>;

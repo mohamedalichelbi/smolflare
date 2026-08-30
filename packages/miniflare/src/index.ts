@@ -1607,7 +1607,16 @@ export class Miniflare {
 			const customFetchService = request.headers.get(
 				CoreHeaders.CUSTOM_FETCH_SERVICE
 			);
-			if (customFetchService !== null) {
+			if (request.headers.has(CoreHeaders.R2_BLOB_STORAGE)) {
+				request.headers.delete(CoreHeaders.R2_BLOB_STORAGE);
+				const storage = this.#sharedOpts.r2BlobStorage;
+				assert(storage?.type === "custom");
+				const result = await storage.fetch(request);
+				response =
+					result instanceof Response
+						? result
+						: new Response(result.body, result);
+			} else if (customFetchService !== null) {
 				request.headers.delete(CoreHeaders.CUSTOM_FETCH_SERVICE);
 				response = await this.#handleLoopbackCustomFetchService(
 					request,
@@ -3686,6 +3695,9 @@ export type {
 	DevConfig,
 	LegacyConfig,
 	InstanceOptions,
+	R2BlobStorage,
+	R2CustomBlobStorage,
+	R2FileBlobStorage,
 } from "./config/schema";
 export type {
 	V4DurableObject,

@@ -4,15 +4,17 @@ export type {
 	BlobRange,
 	BlobStorage,
 } from "./blob-storage";
-export { gatewayConfigFromEnv } from "./config";
-export type { GatewayConfig } from "./config";
-export { createPlugins } from "./plugin";
-export { createSmolflareR2Plugin, SMOLFLARE_PLUGIN_NAME } from "./plugin-core";
+export { createR2BlobFetcher } from "./fetcher";
+export type { RemoteR2Options } from "./fetcher";
+export {
+	R2BucketAzureBlobStorage,
+	R2BucketGCS,
+	R2BucketS3,
+	R2FileSystem,
+} from "./r2";
 export { AzureBlobStorage } from "./providers/azure";
 export type { AzureBlobStorageOptions } from "./providers/azure";
 export { GcsBlobStorage } from "./providers/gcs";
 export type { GcsBlobStorageOptions } from "./providers/gcs";
 export { S3BlobStorage } from "./providers/s3";
 export type { S3BlobStorageOptions } from "./providers/s3";
-export { createBlobGateway } from "./server";
-export type { BlobGatewayOptions } from "./server";
