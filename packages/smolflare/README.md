@@ -1,11 +1,17 @@
 # Smolflare
 
-Smolflare keeps Miniflare's local R2 behavior and stores the blob bytes in a
-real object store. R2 metadata remains in Miniflare's SQLite database, so the
-existing R2 API, conditions, metadata, listing, and multipart behavior stay in
-one place.
+Smolflare runs Worker applications on common infrastructure. It uses Miniflare
+and Workerd for isolated Workers and Durable Objects. It uses standard VPS,
+disk, database, and bucket services for infrastructure.
 
-Smolflare has two parts:
+Use a restricted container and a VM as the outer security boundary.
+
+## R2 blob storage
+
+The R2 adapter stores metadata in Miniflare SQLite. It stores blob data in GCS,
+S3, or Azure Blob Storage. The R2 API and behavior stay unchanged.
+
+The adapter has two parts:
 
 - an external Miniflare plugin named `smolflare-r2`;
 - an HTTP blob gateway with GCS, S3-compatible, and Azure Blob Storage backends.
@@ -19,22 +25,22 @@ Use this shape in a local Wrangler configuration:
 
 ```jsonc
 {
-  "services": [
-    {
-      "binding": "BLUEPRINT_CONTENT",
-      "service": "gadgets-blueprint-content",
-      "dev": {
-        "plugin": {
-          "package": "smolflare",
-          "name": "smolflare-r2"
-        },
-        "options": {
-          "bucketName": "gadgets-blueprint-content",
-          "blobServiceAddress": "smolflare:8788"
-        }
-      }
-    }
-  ]
+	"services": [
+		{
+			"binding": "BLUEPRINT_CONTENT",
+			"service": "gadgets-blueprint-content",
+			"dev": {
+				"plugin": {
+					"package": "smolflare",
+					"name": "smolflare-r2",
+				},
+				"options": {
+					"bucketName": "gadgets-blueprint-content",
+					"blobServiceAddress": "smolflare:8788",
+				},
+			},
+		},
+	],
 }
 ```
 

@@ -1,8 +1,13 @@
 {
 	"name": "smolflare",
 	"version": "0.1.0",
-	"private": true,
-	"description": "Portable object storage for local Miniflare bindings",
+	"description": "Portable backend framework for Worker applications",
+	"keywords": [
+		"cloudflare",
+		"miniflare",
+		"self-hosted",
+		"workers"
+	],
 	"license": "MIT OR Apache-2.0",
 	"bin": {
 		"smolflare": "dist/cli.js"
