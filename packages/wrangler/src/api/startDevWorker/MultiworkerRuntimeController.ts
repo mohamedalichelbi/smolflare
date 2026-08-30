@@ -5,6 +5,7 @@ import { getDockerPath } from "@cloudflare/workers-utils";
 import chalk from "chalk";
 import { convertV4MiniflareOptions, Miniflare, Mutex } from "miniflare";
 import * as MF from "../../dev/miniflare";
+import { applyRuntimeConfig } from "../../dev/miniflare/runtime-config";
 import { logger } from "../../logger";
 import { castErrorCause } from "./events";
 import {
@@ -270,7 +271,9 @@ export class MultiworkerRuntimeController extends LocalRuntimeController {
 				}
 
 				const mergedMfOptions = ensureMatchingSql(this.#mergedMfOptions());
-				const miniflareOptions = convertV4MiniflareOptions(mergedMfOptions);
+				const miniflareOptions = await applyRuntimeConfig(
+					convertV4MiniflareOptions(mergedMfOptions)
+				);
 
 				if (this.#mf === undefined) {
 					logger.log(chalk.dim("⎔ Starting local server..."));

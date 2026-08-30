@@ -16,6 +16,7 @@ import {
 	Mutex,
 } from "miniflare";
 import * as MF from "../../dev/miniflare";
+import { applyRuntimeConfig } from "../../dev/miniflare/runtime-config";
 import { logger } from "../../logger";
 import { RuntimeController } from "./BaseController";
 import { castErrorCause } from "./events";
@@ -426,7 +427,9 @@ export class LocalRuntimeController extends RuntimeController {
 			if (id !== this.#currentBundleId) {
 				return;
 			}
-			const miniflareOptions = convertV4MiniflareOptions(options);
+			const miniflareOptions = await applyRuntimeConfig(
+				convertV4MiniflareOptions(options)
+			);
 
 			if (this.#mf === undefined) {
 				logger.log(chalk.dim("⎔ Starting local server..."));
