@@ -24,12 +24,15 @@ import SCRIPT_ENTRY from "worker:core/entry";
 import OUTBOUND_WORKER from "worker:core/outbound";
 import { z } from "zod";
 import { kCurrentWorker } from "../../config/schema";
-import { kVoid } from "../../runtime";
+import { kVoid, type Worker_DurableObjectStorage } from "../../runtime";
 import { MiniflareCoreError, type Log } from "../../shared";
 import { getDevControlDurableObjectBindingName } from "../../shared/dev-control";
 import { CoreBindings, CoreHeaders, viewToBuffer } from "../../workers";
 import { getCacheServiceName } from "../cache";
-import { DURABLE_OBJECTS_STORAGE_SERVICE_NAME } from "../do";
+import {
+	DURABLE_OBJECTS_PLUGIN_NAME,
+	DURABLE_OBJECTS_STORAGE_SERVICE_NAME,
+} from "../do";
 import { getDurableObjectNamespaces } from "../do/namespaces";
 import { getEmailStoreServices } from "../email/store";
 import { getImagesBindingServiceName } from "../images";
@@ -51,6 +54,7 @@ import {
 	getEnvBindingsOfType,
 	getExportsOfType,
 	getRemoteProxyConnectionString,
+	getSqliteStorage,
 } from "../shared";
 import { getStreamService } from "../stream";
 import {
@@ -485,6 +489,7 @@ export const CORE_PLUGIN: Plugin = {
 		additionalModules,
 		loopbackHost,
 		loopbackPort,
+		tmpPath,
 	}) {
 		const { config, dev } = options;
 		// Define regular user worker
@@ -603,6 +608,22 @@ export const CORE_PLUGIN: Plugin = {
 					),
 				]
 			: userFlags;
+		let durableObjectStorage: Worker_DurableObjectStorage | undefined;
+		if (classNamesEntries.length > 0) {
+			if (dev?.unsafeEphemeralDurableObjects) {
+				durableObjectStorage = { inMemory: kVoid };
+			} else {
+				const sqlite = await getSqliteStorage(
+					`${DURABLE_OBJECTS_PLUGIN_NAME}-${workerIndex}`,
+					DURABLE_OBJECTS_STORAGE_SERVICE_NAME,
+					tmpPath,
+					sharedOptions
+				);
+				durableObjectStorage = sqlite.storage;
+				if (sqlite.cacheService !== undefined)
+					services.push(sqlite.cacheService);
+			}
+		}
 
 		services.push({
 			name: serviceName,
@@ -616,12 +637,7 @@ export const CORE_PLUGIN: Plugin = {
 					config.name,
 					containerPrivileges
 				),
-				durableObjectStorage:
-					classNamesEntries.length === 0
-						? undefined
-						: dev?.unsafeEphemeralDurableObjects
-							? { inMemory: kVoid }
-							: { localDisk: DURABLE_OBJECTS_STORAGE_SERVICE_NAME },
+				durableObjectStorage,
 				globalOutbound: { name: getOutboundInterceptorName(workerIndex) },
 				cacheApiOutbound: { name: getCacheServiceName(workerIndex) },
 				moduleFallback:
@@ -738,7 +754,7 @@ export interface GlobalServicesOptions {
 	/** All worker options for building per-worker resource bindings */
 	allWorkerOpts?: ParsedWorkerOptions[];
 }
-export function getGlobalServices({
+export async function getGlobalServices({
 	sharedOptions,
 	allWorkerRoutes,
 	fallbackWorkerName,
@@ -747,7 +763,7 @@ export function getGlobalServices({
 	proxyBindings,
 	durableObjectClassNames,
 	allWorkerOpts,
-}: GlobalServicesOptions): Service[] {
+}: GlobalServicesOptions): Promise<Service[]> {
 	// Collect list of workers we could route to, then parse and sort all routes
 	const workerNames = [...allWorkerRoutes.keys()];
 	const routes = parseRoutes(allWorkerRoutes);
@@ -1007,12 +1023,7 @@ export function getGlobalServices({
 	// Register the trace collector service. It's attached to each user worker's
 	// tail above.
 	if (sharedOptions.unsafeObservability) {
-		services.push(
-			...getObservabilityServices(
-				tmpPath,
-				sharedOptions.isolatedResourcePersistencePath
-			)
-		);
+		services.push(...(await getObservabilityServices(tmpPath, sharedOptions)));
 	}
 
 	return services;

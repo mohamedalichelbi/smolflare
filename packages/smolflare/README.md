@@ -4,6 +4,44 @@ Smolflare adds configurable storage backends to the Miniflare distribution in
 this repository. It is experimental and is not affiliated with or supported by
 Cloudflare.
 
+## Experimental bucket-backed SQLite
+
+The Smolflare workerd fork can open Durable Object databases through an
+operator-provided writable SQLite VFS. Miniflare applies this backend to user
+Durable Objects and to its KV, R2 metadata, D1, Cache, and observability
+services.
+
+Set `MINIFLARE_WORKERD_PATH` to a compatible Smolflare workerd executable. Then
+configure the Litestream extension and replica URL:
+
+```ts
+import { Miniflare } from "miniflare";
+
+const mf = new Miniflare({
+	sqliteStorage: {
+		type: "remote-ltx",
+		extensionPath: "/opt/lib/litestream-vfs.so",
+		replicaUrl: "s3://database-bucket/smolflare",
+		syncInterval: "1s",
+		pageCacheBytes: 10 * 1024 * 1024,
+		cacheDirectory: "/var/cache/smolflare/sqlite",
+	},
+	workers,
+});
+```
+
+The backend always requests `hydration_enabled=false` and refuses to start when
+`LITESTREAM_HYDRATION_ENABLED` enables hydration. It uses rollback journals
+because Litestream's current writable VFS does not support WAL files. Local
+database state consists of disposable buffers, journals, and page cache data;
+the extension writes synchronized LTX state to the replica URL.
+
+This integration is a narrow prototype. It does not yet provide a
+process-wide cache limit, cross-host ownership leases, remote facet indexes,
+or facet cloning. Database deletion also depends on support from the selected
+VFS. See [the architecture and feasibility note](docs/bucket-backed-sqlite.md)
+before using it with persistent data.
+
 ## Generic R2 blob storage
 
 Miniflare's R2 implementation has two storage layers:

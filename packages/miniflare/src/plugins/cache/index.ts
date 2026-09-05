@@ -6,6 +6,7 @@ import { SharedBindings } from "../../workers";
 import {
 	getMiniflareObjectBindings,
 	getPersistPath,
+	getSqliteStorage,
 	SERVICE_LOOPBACK,
 } from "../shared";
 import type {
@@ -83,6 +84,12 @@ export const CACHE_PLUGIN: Plugin = {
 				name: CACHE_STORAGE_SERVICE_NAME,
 				disk: { path: persistPath, writable: true },
 			};
+			const sqlite = await getSqliteStorage(
+				CACHE_PLUGIN_NAME,
+				CACHE_STORAGE_SERVICE_NAME,
+				tmpPath,
+				sharedOptions
+			);
 			const objectService: Service = {
 				name: CACHE_SERVICE_PREFIX,
 				worker: {
@@ -101,7 +108,7 @@ export const CACHE_PLUGIN: Plugin = {
 						},
 					],
 					// Store Durable Object SQL databases in persist path
-					durableObjectStorage: { localDisk: CACHE_STORAGE_SERVICE_NAME },
+					durableObjectStorage: sqlite.storage,
 					// Bind blob disk directory service to object
 					bindings: [
 						{
@@ -116,7 +123,9 @@ export const CACHE_PLUGIN: Plugin = {
 					],
 				},
 			};
-			services.push(storageService, objectService);
+			services.push(storageService);
+			if (sqlite.cacheService !== undefined) services.push(sqlite.cacheService);
+			services.push(objectService);
 
 			// NOTE: not migrating here as applications should be able to recover from
 			// cache evictions, and we'd need to locate all named caches

@@ -87,7 +87,18 @@ export type Worker = (
 export type Worker_DurableObjectStorage =
 	| { none?: Void }
 	| { inMemory?: Void }
-	| { localDisk?: string };
+	| { localDisk?: string }
+	| { remoteLtx?: Worker_RemoteLtxStorage };
+
+export interface Worker_RemoteLtxStorage {
+	cacheDisk: string;
+	cacheDirectory: string;
+	extensionPath: string;
+	replicaUrl: string;
+	vfsName?: string;
+	syncInterval?: string;
+	pageCacheBytes?: bigint;
+}
 
 export type Worker_Module = {
 	name: string;

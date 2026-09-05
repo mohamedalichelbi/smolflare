@@ -739,6 +739,25 @@ export const InstanceOptionsSchema = z.strictObject({
 						typeof value.fetch === "function"))
 		)
 		.optional(),
+	/** SQLite backend for all local Durable Object-backed services. */
+	sqliteStorage: z
+		.discriminatedUnion("type", [
+			z.strictObject({ type: z.literal("local-disk") }),
+			z.strictObject({
+				type: z.literal("remote-ltx"),
+				extensionPath: z.string().min(1),
+				replicaUrl: z.string().min(1),
+				vfsName: z.string().min(1).default("litestream"),
+				syncInterval: z.string().min(1).default("1s"),
+				pageCacheBytes: z
+					.number()
+					.int()
+					.nonnegative()
+					.default(10 * 1024 * 1024),
+				cacheDirectory: z.string().optional(),
+			}),
+		])
+		.default({ type: "local-disk" }),
 
 	unsafeEnableSharedStorage: z.boolean().optional(),
 
@@ -814,6 +833,18 @@ export interface R2CustomBlobStorage {
 
 /** The blob-body backend used by local R2 buckets. */
 export type R2BlobStorage = R2FileBlobStorage | R2CustomBlobStorage;
+
+export type SqliteStorage =
+	| { readonly type: "local-disk" }
+	| {
+			readonly type: "remote-ltx";
+			readonly extensionPath: string;
+			readonly replicaUrl: string;
+			readonly vfsName?: string;
+			readonly syncInterval?: string;
+			readonly pageCacheBytes?: number;
+			readonly cacheDirectory?: string;
+	  };
 
 // ---------------------------------------------------------------------------
 // Final Miniflare Schema

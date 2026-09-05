@@ -2397,7 +2397,7 @@ export class Miniflare {
 			});
 		}
 
-		const globalServices = getGlobalServices({
+		const globalServices = await getGlobalServices({
 			sharedOptions: sharedOpts,
 			allWorkerRoutes,
 			/*

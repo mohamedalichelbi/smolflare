@@ -8,6 +8,7 @@ import {
 	getMiniflareObjectBindings,
 	getPersistPath,
 	getRemoteProxyConnectionString,
+	getSqliteStorage,
 	getStorageService,
 	objectEntryWorker,
 	ProxyNodeBinding,
@@ -145,6 +146,12 @@ export const KV_PLUGIN: Plugin = {
 				name: KV_STORAGE_SERVICE_NAME,
 				disk: { path: persistPath, writable: true },
 			};
+			const sqlite = await getSqliteStorage(
+				KV_PLUGIN_NAME,
+				KV_STORAGE_SERVICE_NAME,
+				tmpPath,
+				sharedOptions
+			);
 			const objectService: Service = {
 				name: SERVICE_NAMESPACE_PREFIX,
 				worker: {
@@ -160,7 +167,7 @@ export const KV_PLUGIN: Plugin = {
 						{ className: KV_NAMESPACE_OBJECT_CLASS_NAME, uniqueKey },
 					],
 					// Store Durable Object SQL databases in persist path
-					durableObjectStorage: { localDisk: KV_STORAGE_SERVICE_NAME },
+					durableObjectStorage: sqlite.storage,
 					// Bind blob disk directory service to object
 					bindings: [
 						{
@@ -175,7 +182,9 @@ export const KV_PLUGIN: Plugin = {
 					],
 				},
 			};
-			services.push(storageService, objectService);
+			services.push(storageService);
+			if (sqlite.cacheService !== undefined) services.push(sqlite.cacheService);
+			services.push(objectService);
 		}
 		if (isWorkersSitesEnabled(options)) {
 			services.push(...getSitesServices(options.legacy, options.dev?.rootPath));
