@@ -181,6 +181,27 @@ per-database accounting, or global eviction policy. The write buffer is
 correctly separate from the page cache, but temporary-file growth is also not
 globally controlled.
 
+### Replica URL and database identity
+
+One replica URL identifies one database's complete LTX history. It does not
+identify one member of a set of interchangeable replicas. Two connections that
+use the same replica URL refer to the same logical database and must share its
+writer and transaction-ID coordination. Two different replica URLs refer to
+independent databases and each database starts its own transaction-ID sequence.
+
+The current Litestream extension registers one process-wide SQLite VFS named
+`litestream`. That VFS accepts per-database configuration and creates a replica
+client for the replica URL of each opened connection. We must not start one
+Litestream process or register one VFS for every Durable Object.
+
+The review-branch Litestream patch changes the writer-state map to use the
+exact replica URL as its key. This keeps connections to one database aligned
+while it isolates transaction IDs for different databases. A focused test with
+two independent replica URLs passes. This patch addresses correctness only. It
+does not make thousands of open connections cheap: every open database still
+has connection, cache, client, and synchronization state. Smolflare still needs
+actor eviction, lazy reopen, and process-wide cache accounting.
+
 ## Lifecycle and ownership
 
 Workerd keeps one live actor instance for a Durable Object ID in one server
