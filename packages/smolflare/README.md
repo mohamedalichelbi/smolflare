@@ -17,13 +17,15 @@ configure the local Litestream extension path and replica URL:
 ```ts
 import { Miniflare } from "miniflare";
 
+const PAGE_CACHE_BYTES = 10 * 1024 * 1024;
+
 const mf = new Miniflare({
 	sqliteStorage: {
 		type: "remote-ltx",
 		extensionPath: "/opt/smolflare/runtime/litestream-vfs.so",
 		replicaUrl: "s3://database-bucket/smolflare",
-		syncInterval: "1s",
-		pageCacheBytes: 10 * 1024 * 1024,
+		syncInterval: "1m",
+		pageCacheBytes: PAGE_CACHE_BYTES,
 		cacheDirectory: "/var/cache/smolflare/sqlite",
 	},
 	workers,

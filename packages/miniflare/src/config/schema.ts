@@ -49,6 +49,11 @@ const AbsolutePathSchema = z
 		message: "Path must be absolute",
 	});
 
+const DEFAULT_SQLITE_VFS_NAME = "litestream";
+const DEFAULT_SQLITE_SYNC_INTERVAL = "1m";
+const DEFAULT_SQLITE_PAGE_CACHE_BYTES = 10 * 1024 * 1024;
+const DEFAULT_SQLITE_STORAGE = { type: "local-disk" } as const;
+
 /**
  * The modules that make up a Worker, with their contents provided inline.
  */
@@ -747,17 +752,17 @@ export const InstanceOptionsSchema = z.strictObject({
 				type: z.literal("remote-ltx"),
 				extensionPath: z.string().min(1),
 				replicaUrl: z.string().min(1),
-				vfsName: z.string().min(1).default("litestream"),
-				syncInterval: z.string().min(1).default("1s"),
+				vfsName: z.string().min(1).default(DEFAULT_SQLITE_VFS_NAME),
+				syncInterval: z.string().min(1).default(DEFAULT_SQLITE_SYNC_INTERVAL),
 				pageCacheBytes: z
 					.number()
 					.int()
 					.nonnegative()
-					.default(10 * 1024 * 1024),
+					.default(DEFAULT_SQLITE_PAGE_CACHE_BYTES),
 				cacheDirectory: z.string().optional(),
 			}),
 		])
-		.default({ type: "local-disk" }),
+		.default(DEFAULT_SQLITE_STORAGE),
 
 	unsafeEnableSharedStorage: z.boolean().optional(),
 
