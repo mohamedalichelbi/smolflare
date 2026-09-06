@@ -11,17 +11,8 @@ operator-provided writable SQLite VFS. Miniflare applies this backend to user
 Durable Objects and to its KV, R2 metadata, D1, Cache, and observability
 services.
 
-Install the pinned runtime files in an image build or before Miniflare starts.
-The installer verifies both SHA-256 values and reuses verified files:
-
-```ts
-import { installSmolflareRuntime } from "smolflare";
-
-const runtime = await installSmolflareRuntime("/opt/smolflare/runtime");
-process.env.MINIFLARE_WORKERD_PATH = runtime.workerdPath;
-```
-
-Then configure the Litestream extension and replica URL:
+Set `MINIFLARE_WORKERD_PATH` to a compatible Smolflare Workerd executable. Then
+configure the local Litestream extension path and replica URL:
 
 ```ts
 import { Miniflare } from "miniflare";
@@ -29,7 +20,7 @@ import { Miniflare } from "miniflare";
 const mf = new Miniflare({
 	sqliteStorage: {
 		type: "remote-ltx",
-		extensionPath: runtime.extensionPath,
+		extensionPath: "/opt/smolflare/runtime/litestream-vfs.so",
 		replicaUrl: "s3://database-bucket/smolflare",
 		syncInterval: "1s",
 		pageCacheBytes: 10 * 1024 * 1024,
