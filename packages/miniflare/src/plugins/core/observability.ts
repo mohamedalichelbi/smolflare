@@ -1,11 +1,12 @@
 import { mkdirSync } from "node:fs";
 import SCRIPT_OBSERVABILITY_COLLECTOR from "worker:observability/collector";
 import { type Service } from "../../runtime";
-import { getPersistPath } from "../shared";
+import { getPersistPath, getSqliteStorage } from "../shared";
 import {
 	getUserServiceName,
 	OBSERVABILITY_COLLECTOR_SERVICE_NAME,
 } from "./constants";
+import type { ParsedInstanceOptions } from "../../config/schema";
 
 /**
  * Builds the trace collector service and the storage behind it. Miniflare core
@@ -22,10 +23,10 @@ const TRACE_STORE_BINDING = "TRACE_STORE";
 /** Disk service backing the TraceStore DO's SQLite storage. */
 const OBSERVABILITY_STORAGE_SERVICE_NAME = "obs:storage";
 
-export function getObservabilityServices(
+export async function getObservabilityServices(
 	tmpPath: string,
-	isolatedResourcePersistencePath: string | undefined
-): Service[] {
+	sharedOptions: ParsedInstanceOptions
+): Promise<Service[]> {
 	// The TraceStore DO is SQLite-backed, so it needs disk-backed storage (the
 	// in-memory option doesn't support SQL). Persist under `.wrangler/state` when
 	// a persist root is set (so it survives dev-server restarts), otherwise fall
@@ -33,11 +34,17 @@ export function getObservabilityServices(
 	const storagePath = getPersistPath(
 		"observability",
 		tmpPath,
-		isolatedResourcePersistencePath
+		sharedOptions.isolatedResourcePersistencePath
 	);
 	mkdirSync(storagePath, { recursive: true });
+	const sqlite = await getSqliteStorage(
+		"observability",
+		OBSERVABILITY_STORAGE_SERVICE_NAME,
+		tmpPath,
+		sharedOptions
+	);
 
-	return [
+	const services: Service[] = [
 		{
 			name: OBSERVABILITY_STORAGE_SERVICE_NAME,
 			disk: { path: storagePath, writable: true },
@@ -66,7 +73,7 @@ export function getObservabilityServices(
 						preventEviction: true,
 					},
 				],
-				durableObjectStorage: { localDisk: OBSERVABILITY_STORAGE_SERVICE_NAME },
+				durableObjectStorage: sqlite.storage,
 				bindings: [
 					{
 						name: TRACE_STORE_BINDING,
@@ -76,4 +83,7 @@ export function getObservabilityServices(
 			},
 		},
 	];
+	if (sqlite.cacheService !== undefined)
+		services.splice(1, 0, sqlite.cacheService);
+	return services;
 }

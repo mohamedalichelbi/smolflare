@@ -2608,6 +2608,33 @@ export class Worker_Binding extends $.Struct {
 		return $.utils.getUint16(0, this) as Worker_Binding_Which;
 	}
 }
+export class Worker_DurableObjectNamespace_ContainerOptions_NamedImage
+	extends $.Struct
+{
+	static readonly _capnp = {
+		displayName: "NamedImage",
+		id: "ab54a21a8a2ec0c0",
+		size: new $.ObjectSize(0, 2),
+	};
+	get name(): string {
+		return $.utils.getText(0, this);
+	}
+	set name(value: string) {
+		$.utils.setText(0, value, this);
+	}
+	get image(): string {
+		return $.utils.getText(1, this);
+	}
+	set image(value: string) {
+		$.utils.setText(1, value, this);
+	}
+	toString(): string {
+		return (
+			"Worker_DurableObjectNamespace_ContainerOptions_NamedImage_" +
+			super.toString()
+		);
+	}
+}
 export class Worker_DurableObjectNamespace_ContainerOptions_ContainerPrivileges_Device
 	extends $.Struct
 {
@@ -2745,13 +2772,16 @@ export class Worker_DurableObjectNamespace_ContainerOptions_ContainerPrivileges
 	}
 }
 export class Worker_DurableObjectNamespace_ContainerOptions extends $.Struct {
+	static readonly NamedImage =
+		Worker_DurableObjectNamespace_ContainerOptions_NamedImage;
 	static readonly ContainerPrivileges =
 		Worker_DurableObjectNamespace_ContainerOptions_ContainerPrivileges;
 	static readonly _capnp = {
 		displayName: "ContainerOptions",
 		id: "a609621a4d236cd7",
-		size: new $.ObjectSize(0, 2),
+		size: new $.ObjectSize(0, 3),
 	};
+	static _Images: $.ListCtor<Worker_DurableObjectNamespace_ContainerOptions_NamedImage>;
 	/**
 	 * Image name to be used to create the container using supported provider.
 	 * By default, we pull the "latest" tag of this image.
@@ -2800,6 +2830,48 @@ export class Worker_DurableObjectNamespace_ContainerOptions extends $.Struct {
 		value: Worker_DurableObjectNamespace_ContainerOptions_ContainerPrivileges
 	) {
 		$.utils.copyFrom(value, $.utils.getPointer(1, this));
+	}
+	_adoptImages(
+		value: $.Orphan<
+			$.List<Worker_DurableObjectNamespace_ContainerOptions_NamedImage>
+		>
+	): void {
+		$.utils.adopt(value, $.utils.getPointer(2, this));
+	}
+	_disownImages(): $.Orphan<
+		$.List<Worker_DurableObjectNamespace_ContainerOptions_NamedImage>
+	> {
+		return $.utils.disown(this.images);
+	}
+	/**
+	 * Named image references exposed to the Durable Object through ctx.container.images.
+	 * These do not change imageName, which remains the default when start() omits an image.
+	 *
+	 */
+	get images(): $.List<Worker_DurableObjectNamespace_ContainerOptions_NamedImage> {
+		return $.utils.getList(
+			2,
+			Worker_DurableObjectNamespace_ContainerOptions._Images,
+			this
+		);
+	}
+	_hasImages(): boolean {
+		return !$.utils.isNull($.utils.getPointer(2, this));
+	}
+	_initImages(
+		length: number
+	): $.List<Worker_DurableObjectNamespace_ContainerOptions_NamedImage> {
+		return $.utils.initList(
+			2,
+			Worker_DurableObjectNamespace_ContainerOptions._Images,
+			length,
+			this
+		);
+	}
+	set images(
+		value: $.List<Worker_DurableObjectNamespace_ContainerOptions_NamedImage>
+	) {
+		$.utils.copyFrom(value, $.utils.getPointer(2, this));
 	}
 	toString(): string {
 		return "Worker_DurableObjectNamespace_ContainerOptions_" + super.toString();
@@ -2968,6 +3040,94 @@ export class Worker_DurableObjectNamespace extends $.Struct {
 		return $.utils.getUint16(0, this) as Worker_DurableObjectNamespace_Which;
 	}
 }
+export class Worker_RemoteLtxStorage extends $.Struct {
+	static readonly _capnp = {
+		displayName: "RemoteLtxStorage",
+		id: "9fe55b74cf45911d",
+		size: new $.ObjectSize(8, 6),
+		defaultVfsName: "litestream",
+		defaultSyncInterval: "1s",
+		defaultPageCacheBytes: $.getUint64Mask(0xa00000n),
+	};
+	/**
+	 * Name of a writable DiskDirectory service for temporary files and facet indexes.
+	 *
+	 */
+	get cacheDisk(): string {
+		return $.utils.getText(0, this);
+	}
+	set cacheDisk(value: string) {
+		$.utils.setText(0, value, this);
+	}
+	/**
+	 * Native path used by the extension for disposable write buffers.
+	 *
+	 */
+	get cacheDirectory(): string {
+		return $.utils.getText(1, this);
+	}
+	set cacheDirectory(value: string) {
+		$.utils.setText(1, value, this);
+	}
+	/**
+	 * Native path to the SQLite extension that registers the configured VFS.
+	 *
+	 */
+	get extensionPath(): string {
+		return $.utils.getText(2, this);
+	}
+	set extensionPath(value: string) {
+		$.utils.setText(2, value, this);
+	}
+	/**
+	 * Base replica URL. Workerd appends the namespace key and database name.
+	 *
+	 */
+	get replicaUrl(): string {
+		return $.utils.getText(3, this);
+	}
+	set replicaUrl(value: string) {
+		$.utils.setText(3, value, this);
+	}
+	get vfsName(): string {
+		return $.utils.getText(
+			4,
+			this,
+			Worker_RemoteLtxStorage._capnp.defaultVfsName
+		);
+	}
+	set vfsName(value: string) {
+		$.utils.setText(4, value, this);
+	}
+	get syncInterval(): string {
+		return $.utils.getText(
+			5,
+			this,
+			Worker_RemoteLtxStorage._capnp.defaultSyncInterval
+		);
+	}
+	set syncInterval(value: string) {
+		$.utils.setText(5, value, this);
+	}
+	get pageCacheBytes(): bigint {
+		return $.utils.getUint64(
+			0,
+			this,
+			Worker_RemoteLtxStorage._capnp.defaultPageCacheBytes
+		);
+	}
+	set pageCacheBytes(value: bigint) {
+		$.utils.setUint64(
+			0,
+			value,
+			this,
+			Worker_RemoteLtxStorage._capnp.defaultPageCacheBytes
+		);
+	}
+	toString(): string {
+		return "Worker_RemoteLtxStorage_" + super.toString();
+	}
+}
 export class Worker_DockerConfiguration extends $.Struct {
 	static readonly _capnp = {
 		displayName: "DockerConfiguration",
@@ -3037,6 +3197,15 @@ export const Worker_DurableObjectStorage_Which = {
 	 *
 	 */
 	LOCAL_DISK: 2,
+	/**
+	 * **EXPERIMENTAL; SUBJECT TO BACKWARDS-INCOMPATIBLE CHANGE**
+	 *
+	 * Opens Durable Object databases through an extension-provided SQLite VFS. The VFS stores
+	 * synchronized database state as LTX objects. The cache disk is disposable and must not be
+	 * treated as authoritative storage. Hydration is always disabled by this configuration.
+	 *
+	 */
+	REMOTE_LTX: 3,
 } as const;
 export type Worker_DurableObjectStorage_Which =
 	(typeof Worker_DurableObjectStorage_Which)[keyof typeof Worker_DurableObjectStorage_Which];
@@ -3048,6 +3217,7 @@ export class Worker_DurableObjectStorage extends $.Struct {
 	static readonly NONE = Worker_DurableObjectStorage_Which.NONE;
 	static readonly IN_MEMORY = Worker_DurableObjectStorage_Which.IN_MEMORY;
 	static readonly LOCAL_DISK = Worker_DurableObjectStorage_Which.LOCAL_DISK;
+	static readonly REMOTE_LTX = Worker_DurableObjectStorage_Which.REMOTE_LTX;
 	static readonly _capnp = {
 		displayName: "durableObjectStorage",
 		id: "cc72b3faa57827d4",
@@ -3087,6 +3257,39 @@ export class Worker_DurableObjectStorage extends $.Struct {
 	set localDisk(value: string) {
 		$.utils.setUint16(2, 2, this);
 		$.utils.setText(8, value, this);
+	}
+	_adoptRemoteLtx(value: $.Orphan<Worker_RemoteLtxStorage>): void {
+		$.utils.setUint16(2, 3, this);
+		$.utils.adopt(value, $.utils.getPointer(8, this));
+	}
+	_disownRemoteLtx(): $.Orphan<Worker_RemoteLtxStorage> {
+		return $.utils.disown(this.remoteLtx);
+	}
+	/**
+	 * **EXPERIMENTAL; SUBJECT TO BACKWARDS-INCOMPATIBLE CHANGE**
+	 *
+	 * Opens Durable Object databases through an extension-provided SQLite VFS. The VFS stores
+	 * synchronized database state as LTX objects. The cache disk is disposable and must not be
+	 * treated as authoritative storage. Hydration is always disabled by this configuration.
+	 *
+	 */
+	get remoteLtx(): Worker_RemoteLtxStorage {
+		$.utils.testWhich("remoteLtx", $.utils.getUint16(2, this), 3, this);
+		return $.utils.getStruct(8, Worker_RemoteLtxStorage, this);
+	}
+	_hasRemoteLtx(): boolean {
+		return !$.utils.isNull($.utils.getPointer(8, this));
+	}
+	_initRemoteLtx(): Worker_RemoteLtxStorage {
+		$.utils.setUint16(2, 3, this);
+		return $.utils.initStructAt(8, Worker_RemoteLtxStorage, this);
+	}
+	get _isRemoteLtx(): boolean {
+		return $.utils.getUint16(2, this) === 3;
+	}
+	set remoteLtx(value: Worker_RemoteLtxStorage) {
+		$.utils.setUint16(2, 3, this);
+		$.utils.copyFrom(value, $.utils.getPointer(8, this));
 	}
 	toString(): string {
 		return "Worker_DurableObjectStorage_" + super.toString();
@@ -3209,6 +3412,7 @@ export class Worker extends $.Struct {
 	static readonly Module = Worker_Module;
 	static readonly Binding = Worker_Binding;
 	static readonly DurableObjectNamespace = Worker_DurableObjectNamespace;
+	static readonly RemoteLtxStorage = Worker_RemoteLtxStorage;
 	static readonly DockerConfiguration = Worker_DockerConfiguration;
 	static readonly _capnp = {
 		displayName: "Worker",
@@ -4566,6 +4770,9 @@ Worker_DurableObjectNamespace_ContainerOptions_ContainerPrivileges._Devices =
 	$.CompositeList(
 		Worker_DurableObjectNamespace_ContainerOptions_ContainerPrivileges_Device
 	);
+Worker_DurableObjectNamespace_ContainerOptions._Images = $.CompositeList(
+	Worker_DurableObjectNamespace_ContainerOptions_NamedImage
+);
 Worker._Modules = $.CompositeList(Worker_Module);
 Worker._Bindings = $.CompositeList(Worker_Binding);
 Worker._DurableObjectNamespaces = $.CompositeList(

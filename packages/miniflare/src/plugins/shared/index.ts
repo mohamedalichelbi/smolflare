@@ -87,6 +87,8 @@ export interface ServicesExtensions {
 	extensions: Extension[];
 }
 
+export { getSqliteStorage } from "./sqlite-storage";
+
 /**
  * Every plugin receives the full parsed per-worker `WorkerOptions` and filters
  * its own bindings out of `options.config.env` / `options.config.exports` /

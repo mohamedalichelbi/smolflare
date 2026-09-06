@@ -8,6 +8,7 @@ import {
 	getMiniflareObjectBindings,
 	getPersistPath,
 	getRemoteProxyConnectionString,
+	getSqliteStorage,
 	getStorageService,
 	objectEntryWorker,
 	ProxyNodeBinding,
@@ -124,6 +125,12 @@ export const D1_PLUGIN: Plugin = {
 				name: D1_STORAGE_SERVICE_NAME,
 				disk: { path: persistPath, writable: true },
 			};
+			const sqlite = await getSqliteStorage(
+				D1_PLUGIN_NAME,
+				D1_STORAGE_SERVICE_NAME,
+				tmpPath,
+				sharedOptions
+			);
 			const objectService: Service = {
 				name: D1_DATABASE_SERVICE_PREFIX,
 				worker: {
@@ -142,7 +149,7 @@ export const D1_PLUGIN: Plugin = {
 						},
 					],
 					// Store Durable Object SQL databases in persist path
-					durableObjectStorage: { localDisk: D1_STORAGE_SERVICE_NAME },
+					durableObjectStorage: sqlite.storage,
 					// Bind blob disk directory service to object
 					bindings: [
 						{
@@ -157,7 +164,9 @@ export const D1_PLUGIN: Plugin = {
 					],
 				},
 			};
-			services.push(storageService, objectService);
+			services.push(storageService);
+			if (sqlite.cacheService !== undefined) services.push(sqlite.cacheService);
+			services.push(objectService);
 		}
 		return services;
 	},

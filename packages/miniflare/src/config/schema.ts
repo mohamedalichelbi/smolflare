@@ -38,6 +38,10 @@ import type {
 } from "../index";
 import type { DOContainerOptions } from "../plugins/do";
 import type { UnsafeUniqueKey } from "../plugins/shared/constants";
+import type {
+	Service,
+	Worker_DurableObjectStorage,
+} from "../runtime/config/workerd";
 import type { Log } from "../shared";
 import type { WorkerRegistry } from "../shared/dev-registry-types";
 import type { Awaitable } from "../workers";
@@ -739,6 +743,18 @@ export const InstanceOptionsSchema = z.strictObject({
 						typeof value.fetch === "function"))
 		)
 		.optional(),
+	/** Optional SQLite backend for local Durable Object-backed services. */
+	sqliteStorage: z
+		.custom<SqliteStorageBackend>(
+			(value) =>
+				typeof value === "object" &&
+				value !== null &&
+				"type" in value &&
+				value.type === "custom" &&
+				"getStorage" in value &&
+				typeof value.getStorage === "function"
+		)
+		.optional(),
 
 	unsafeEnableSharedStorage: z.boolean().optional(),
 
@@ -814,6 +830,27 @@ export interface R2CustomBlobStorage {
 
 /** The blob-body backend used by local R2 buckets. */
 export type R2BlobStorage = R2FileBlobStorage | R2CustomBlobStorage;
+
+/** Identifies one SQLite storage consumer in Miniflare. */
+export interface SqliteStorageBackendContext {
+	readonly localDiskServiceName: string;
+	readonly pluginName: string;
+	readonly tmpPath: string;
+}
+
+/** Supplies Workerd storage and any services that it needs. */
+export interface SqliteStorageBackendResult {
+	readonly cacheService?: Service;
+	readonly storage: Worker_DurableObjectStorage;
+}
+
+/** Provides SQLite storage for local Durable Object-backed services. */
+export interface SqliteStorageBackend {
+	readonly type: "custom";
+	getStorage(
+		context: SqliteStorageBackendContext
+	): Awaitable<SqliteStorageBackendResult>;
+}
 
 // ---------------------------------------------------------------------------
 // Final Miniflare Schema
