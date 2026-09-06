@@ -18,3 +18,10 @@ export { GcsBlobStorage } from "./providers/gcs";
 export type { GcsBlobStorageOptions } from "./providers/gcs";
 export { S3BlobStorage } from "./providers/s3";
 export type { S3BlobStorageOptions } from "./providers/s3";
+export { installSmolflareRuntime, SMOLFLARE_RUNTIME_LOCK } from "./runtime";
+export type {
+	InstallSmolflareRuntimeOptions,
+	SmolflareRuntimeArtifact,
+	SmolflareRuntimeLock,
+	SmolflareRuntimePaths,
+} from "./runtime";

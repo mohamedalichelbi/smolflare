@@ -283,6 +283,19 @@ interface RemoteLtxSqliteStorage {
 }
 ```
 
+The `smolflare` package also exports `installSmolflareRuntime()`. Call it during
+an image build or before Miniflare starts. The installer downloads these exact
+Linux x64 release files and checks their SHA-256 values:
+
+- Workerd `v1.20260905.1-smolflare.1`, commit
+  `4c92a9c3eb81d074f3f3477b3067df4f9a9c4a14`;
+- Litestream VFS `v0.5.17-smolflare.1`, commit
+  `50aa20ce550cb38eb08ff05295044decc822700a`.
+
+The installer does not run as an npm install hook. Startup code must call it
+explicitly and set `MINIFLARE_WORKERD_PATH` to the returned Workerd path. Pass
+the returned extension path to `sqliteStorage.extensionPath`.
+
 Smolflare must reject all hydration settings, including inherited
 `LITESTREAM_HYDRATION_ENABLED=true`. It should construct explicit per-database
 configuration instead of relying on process-wide Litestream environment
