@@ -83,6 +83,7 @@ import {
 } from "./modules";
 import { getObservabilityServices } from "./observability";
 import { PROXY_SECRET } from "./proxy";
+import { getDurableObjectStoragePluginName } from "./sqlite-storage";
 import type {
 	Extension,
 	Service,
@@ -614,7 +615,7 @@ export const CORE_PLUGIN: Plugin = {
 				durableObjectStorage = { inMemory: kVoid };
 			} else {
 				const sqlite = await getSqliteStorage(
-					`${DURABLE_OBJECTS_PLUGIN_NAME}-${workerIndex}`,
+					getDurableObjectStoragePluginName(config.name),
 					DURABLE_OBJECTS_STORAGE_SERVICE_NAME,
 					tmpPath,
 					sharedOptions
