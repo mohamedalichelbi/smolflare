@@ -1,5 +1,64 @@
 # miniflare
 
+## 5.20260903.0-alpha
+
+### Minor Changes
+
+- [#15401](https://github.com/cloudflare/workers-sdk/pull/15401) [`00a9f2f`](https://github.com/cloudflare/workers-sdk/commit/00a9f2f87bb1319ed96b41fe5d9be5503445d2c0) Thanks [@penalosa](https://github.com/penalosa)! - Allow Local Explorer storage APIs to access arbitrary local resource IDs
+
+  D1, KV and R2 operations now address Miniflare's internal storage services directly, so they no longer require configured bindings. Shared-storage sessions route these requests to the elected storage owner, and storage listings only aggregate peers in the same shared-storage scope.
+
+### Patch Changes
+
+- [#15495](https://github.com/cloudflare/workers-sdk/pull/15495) [`1dba24a`](https://github.com/cloudflare/workers-sdk/commit/1dba24a1ecf770a98b36c218cb77e26c7701be49) Thanks [@penalosa](https://github.com/penalosa)! - Prevent short-lived Miniflare instances from hanging during disposal
+
+  Wait for the development registry's filesystem watcher to finish initialising before runtime startup completes, ensuring the watcher can always be closed cleanly.
+
+- [#15469](https://github.com/cloudflare/workers-sdk/pull/15469) [`d40a634`](https://github.com/cloudflare/workers-sdk/commit/d40a634f970971bbcba01a8ac201fd3526b3e5fe) Thanks [@dependabot](https://github.com/apps/dependabot)! - Update dependencies of "miniflare", "wrangler"
+
+  The following dependency versions have been updated:
+
+  | Dependency                | From          | To            |
+  | ------------------------- | ------------- | ------------- |
+  | @cloudflare/workers-types | ^5.20260831.1 | ^5.20260902.1 |
+  | workerd                   | 1.20260831.1  | 1.20260902.1  |
+
+- [#15481](https://github.com/cloudflare/workers-sdk/pull/15481) [`7c1b2a6`](https://github.com/cloudflare/workers-sdk/commit/7c1b2a600a02a8978d97786af4c7098216c31c4d) Thanks [@dependabot](https://github.com/apps/dependabot)! - Update dependencies of "miniflare", "wrangler"
+
+  The following dependency versions have been updated:
+
+  | Dependency                | From          | To            |
+  | ------------------------- | ------------- | ------------- |
+  | @cloudflare/workers-types | ^5.20260902.1 | ^5.20260903.1 |
+  | workerd                   | 1.20260902.1  | 1.20260903.1  |
+
+## 5.20260831.0-alpha
+
+### Minor Changes
+
+- [#15353](https://github.com/cloudflare/workers-sdk/pull/15353) [`87a7acf`](https://github.com/cloudflare/workers-sdk/commit/87a7acf197629f5bf16bb38a2e411dc6c21339e0) Thanks [@pombosilva](https://github.com/pombosilva)! - Add `--date-start` and `--date-end` filters to `wrangler workflows instances list`
+
+  You can now narrow an instance listing to a creation-time window:
+
+  `wrangler workflows instances list my-workflow --date-start 2026-01-01 --date-end 2026-01-31`
+
+  Either flag can be used independently. Both accept an ISO 8601 date or timestamp and are normalised to UTC before being sent, so a date-only value such as `2026-01-01` works as well as a full `2026-01-01T13:00:00Z`. The bounds are inclusive and compose with the existing `--status` filter.
+
+### Patch Changes
+
+- [#15436](https://github.com/cloudflare/workers-sdk/pull/15436) [`200780f`](https://github.com/cloudflare/workers-sdk/commit/200780faa81ab5e58bc656e2d21a20fdd3a4b725) Thanks [@dependabot](https://github.com/apps/dependabot)! - Update dependencies of "miniflare", "wrangler"
+
+  The following dependency versions have been updated:
+
+  | Dependency                | From          | To            |
+  | ------------------------- | ------------- | ------------- |
+  | @cloudflare/workers-types | ^5.20260828.1 | ^5.20260831.1 |
+  | workerd                   | 1.20260828.1  | 1.20260831.1  |
+
+- [#15406](https://github.com/cloudflare/workers-sdk/pull/15406) [`b3f2628`](https://github.com/cloudflare/workers-sdk/commit/b3f26289a735279e463fb4802d4a4481cfaaac71) Thanks [@james-elicx](https://github.com/james-elicx)! - Reduce the installed bundle sizes of Wrangler and Miniflare
+
+  Wrangler now resolves bundled workspace dependencies from source during monorepo builds so unused exports can be removed. Miniflare, its shared CLI and container dependencies now use granular `@cloudflare/workers-utils` entry points instead of loading the package barrel, reducing the raw Wrangler and Miniflare artifacts by 6.16 MiB (31.4%) and 1.06 MiB (22.9%) respectively without changing runtime behavior or installed dependencies.
+
 ## 5.20260828.0-alpha
 
 ### Minor Changes

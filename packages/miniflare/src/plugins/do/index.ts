@@ -58,13 +58,19 @@ export const DURABLE_OBJECTS_PLUGIN: Plugin = {
 				break;
 			}
 		}
-		if (!hasDurableObjects) return;
+		if (!hasDurableObjects) {
+			return;
+		}
 
 		// If this worker has enabled `unsafeEphemeralDurableObjects`, it won't need
 		// the Durable Object storage service. If all workers have this enabled, we
 		// don't need to create the storage service at all.
-		if (unsafeEphemeralDurableObjects) return;
-		if (sharedOptions.sqliteStorage !== undefined) return;
+		if (unsafeEphemeralDurableObjects) {
+			return;
+		}
+		if (sharedOptions.sqliteStorage !== undefined) {
+			return;
+		}
 
 		const storagePath = getPersistPath(
 			DURABLE_OBJECTS_PLUGIN_NAME,

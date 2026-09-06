@@ -15,9 +15,9 @@ import { TextEncoder } from "node:util";
 import { DEFAULT_CONTAINER_EGRESS_INTERCEPTOR_IMAGE } from "@cloudflare/containers-shared";
 import {
 	getTodaysCompatDate,
-	removeDirSync,
 	stripRedundantNodejsCompatFlags,
-} from "@cloudflare/workers-utils";
+} from "@cloudflare/workers-utils/compatibility-date";
+import { removeDirSync } from "@cloudflare/workers-utils/fs-helpers";
 import SCRIPT_ACCESS_IDENTITY from "worker:access/access-identity";
 import SCRIPT_DEV_CONTROL from "worker:core/dev-control";
 import SCRIPT_ENTRY from "worker:core/entry";
@@ -672,7 +672,9 @@ export const CORE_PLUGIN: Plugin = {
 				service,
 				dev
 			);
-			if (maybeService !== undefined) services.push(maybeService);
+			if (maybeService !== undefined) {
+				services.push(maybeService);
+			}
 		}
 
 		if (dev?.outboundService !== undefined) {
@@ -683,7 +685,9 @@ export const CORE_PLUGIN: Plugin = {
 				dev.outboundService,
 				dev
 			);
-			if (maybeService !== undefined) services.push(maybeService);
+			if (maybeService !== undefined) {
+				services.push(maybeService);
+			}
 		}
 
 		{
@@ -996,6 +1000,7 @@ export async function getGlobalServices({
 			}
 		}
 		const IDToBindingMap: BindingIdMap = constructExplorerBindingMap(
+			allWorkerOpts ?? [],
 			proxyBindings,
 			durableObjectClassNames,
 			workflowOptions
@@ -1016,6 +1021,7 @@ export async function getGlobalServices({
 				explorerWorkerOpts,
 				telemetry: sharedOptions.telemetry,
 				observabilityEnabled: sharedOptions.unsafeObservability === true,
+				sharedOptions,
 			})
 		);
 	}
