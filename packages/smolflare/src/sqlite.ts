@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 const DEFAULT_PAGE_CACHE_BYTES = 10 * 1024 * 1024;
-const DEFAULT_SYNC_INTERVAL = "1m";
+const DEFAULT_SYNC_INTERVAL = "10s";
 const DEFAULT_VFS_NAME = "litestream";
 
 function requireValue(value: string, name: string): void {
