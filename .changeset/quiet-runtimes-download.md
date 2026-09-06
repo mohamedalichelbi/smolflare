@@ -5,4 +5,4 @@
 
 Add the experimental remote-LTX SQLite backend
 
-Miniflare can now configure a Workerd external SQLite VFS for all Durable Object-backed local services.
+Miniflare now accepts a custom SQLite storage provider for local Durable Object-backed services. Smolflare provides the remote LTX implementation.

@@ -64,7 +64,7 @@ export const DURABLE_OBJECTS_PLUGIN: Plugin = {
 		// the Durable Object storage service. If all workers have this enabled, we
 		// don't need to create the storage service at all.
 		if (unsafeEphemeralDurableObjects) return;
-		if (sharedOptions.sqliteStorage.type === "remote-ltx") return;
+		if (sharedOptions.sqliteStorage !== undefined) return;
 
 		const storagePath = getPersistPath(
 			DURABLE_OBJECTS_PLUGIN_NAME,

@@ -38,6 +38,10 @@ import type {
 } from "../index";
 import type { DOContainerOptions } from "../plugins/do";
 import type { UnsafeUniqueKey } from "../plugins/shared/constants";
+import type {
+	Service,
+	Worker_DurableObjectStorage,
+} from "../runtime/config/workerd";
 import type { Log } from "../shared";
 import type { WorkerRegistry } from "../shared/dev-registry-types";
 import type { Awaitable } from "../workers";
@@ -48,11 +52,6 @@ const AbsolutePathSchema = z
 	.refine((value) => path.isAbsolute(value), {
 		message: "Path must be absolute",
 	});
-
-const DEFAULT_SQLITE_VFS_NAME = "litestream";
-const DEFAULT_SQLITE_SYNC_INTERVAL = "1m";
-const DEFAULT_SQLITE_PAGE_CACHE_BYTES = 10 * 1024 * 1024;
-const DEFAULT_SQLITE_STORAGE = { type: "local-disk" } as const;
 
 /**
  * The modules that make up a Worker, with their contents provided inline.
@@ -744,25 +743,18 @@ export const InstanceOptionsSchema = z.strictObject({
 						typeof value.fetch === "function"))
 		)
 		.optional(),
-	/** SQLite backend for all local Durable Object-backed services. */
+	/** Optional SQLite backend for local Durable Object-backed services. */
 	sqliteStorage: z
-		.discriminatedUnion("type", [
-			z.strictObject({ type: z.literal("local-disk") }),
-			z.strictObject({
-				type: z.literal("remote-ltx"),
-				extensionPath: z.string().min(1),
-				replicaUrl: z.string().min(1),
-				vfsName: z.string().min(1).default(DEFAULT_SQLITE_VFS_NAME),
-				syncInterval: z.string().min(1).default(DEFAULT_SQLITE_SYNC_INTERVAL),
-				pageCacheBytes: z
-					.number()
-					.int()
-					.nonnegative()
-					.default(DEFAULT_SQLITE_PAGE_CACHE_BYTES),
-				cacheDirectory: z.string().optional(),
-			}),
-		])
-		.default(DEFAULT_SQLITE_STORAGE),
+		.custom<SqliteStorageBackend>(
+			(value) =>
+				typeof value === "object" &&
+				value !== null &&
+				"type" in value &&
+				value.type === "custom" &&
+				"getStorage" in value &&
+				typeof value.getStorage === "function"
+		)
+		.optional(),
 
 	unsafeEnableSharedStorage: z.boolean().optional(),
 
@@ -839,17 +831,26 @@ export interface R2CustomBlobStorage {
 /** The blob-body backend used by local R2 buckets. */
 export type R2BlobStorage = R2FileBlobStorage | R2CustomBlobStorage;
 
-export type SqliteStorage =
-	| { readonly type: "local-disk" }
-	| {
-			readonly type: "remote-ltx";
-			readonly extensionPath: string;
-			readonly replicaUrl: string;
-			readonly vfsName?: string;
-			readonly syncInterval?: string;
-			readonly pageCacheBytes?: number;
-			readonly cacheDirectory?: string;
-	  };
+/** Identifies one SQLite storage consumer in Miniflare. */
+export interface SqliteStorageBackendContext {
+	readonly localDiskServiceName: string;
+	readonly pluginName: string;
+	readonly tmpPath: string;
+}
+
+/** Supplies Workerd storage and any services that it needs. */
+export interface SqliteStorageBackendResult {
+	readonly cacheService?: Service;
+	readonly storage: Worker_DurableObjectStorage;
+}
+
+/** Provides SQLite storage for local Durable Object-backed services. */
+export interface SqliteStorageBackend {
+	readonly type: "custom";
+	getStorage(
+		context: SqliteStorageBackendContext
+	): Awaitable<SqliteStorageBackendResult>;
+}
 
 // ---------------------------------------------------------------------------
 // Final Miniflare Schema

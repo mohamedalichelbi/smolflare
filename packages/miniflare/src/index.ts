@@ -3698,6 +3698,9 @@ export type {
 	R2BlobStorage,
 	R2CustomBlobStorage,
 	R2FileBlobStorage,
+	SqliteStorageBackend,
+	SqliteStorageBackendContext,
+	SqliteStorageBackendResult,
 } from "./config/schema";
 export type {
 	V4DurableObject,

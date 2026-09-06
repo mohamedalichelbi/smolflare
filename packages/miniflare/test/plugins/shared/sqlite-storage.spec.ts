@@ -1,5 +1,3 @@
-import fs from "node:fs/promises";
-import path from "node:path";
 import { test } from "vitest";
 import { getSqliteStorage } from "../../../src/plugins/shared/sqlite-storage";
 import { useTmp } from "../../test-shared";
@@ -7,9 +5,7 @@ import type { ParsedInstanceOptions } from "../../../src/config/schema";
 
 test("uses the existing disk service by default", async ({ expect }) => {
 	const tmpPath = await useTmp();
-	const sharedOptions = {
-		sqliteStorage: { type: "local-disk" },
-	} as ParsedInstanceOptions;
+	const sharedOptions = {} as ParsedInstanceOptions;
 	const result = await getSqliteStorage(
 		"r2",
 		"r2:storage",
@@ -20,18 +16,17 @@ test("uses the existing disk service by default", async ({ expect }) => {
 	expect(result).toEqual({ storage: { localDisk: "r2:storage" } });
 });
 
-test("creates an isolated remote LTX cache service", async ({ expect }) => {
+test("delegates to a custom SQLite backend", async ({ expect }) => {
 	const tmpPath = await useTmp();
-	const cacheRoot = path.join(tmpPath, "cache");
+	const calls: unknown[] = [];
+	const expected = { storage: { localDisk: "custom:storage" } } as const;
 	const sharedOptions = {
 		sqliteStorage: {
-			type: "remote-ltx",
-			extensionPath: "/opt/lib/litestream-vfs.so",
-			replicaUrl: "s3://database-bucket/root/",
-			cacheDirectory: cacheRoot,
-			pageCacheBytes: 4096,
-			vfsName: "litestream",
-			syncInterval: "1s",
+			type: "custom",
+			getStorage(context: unknown) {
+				calls.push(context);
+				return expected;
+			},
 		},
 	} as ParsedInstanceOptions;
 	const result = await getSqliteStorage(
@@ -41,20 +36,8 @@ test("creates an isolated remote LTX cache service", async ({ expect }) => {
 		sharedOptions
 	);
 
-	expect(result.storage).toEqual({
-		remoteLtx: {
-			cacheDisk: "r2:sqlite-cache",
-			cacheDirectory: path.join(cacheRoot, "r2"),
-			extensionPath: "/opt/lib/litestream-vfs.so",
-			replicaUrl: "s3://database-bucket/root/r2",
-			vfsName: "litestream",
-			syncInterval: "1s",
-			pageCacheBytes: 4096n,
-		},
-	});
-	expect(result.cacheService).toEqual({
-		name: "r2:sqlite-cache",
-		disk: { path: path.join(cacheRoot, "r2"), writable: true },
-	});
-	expect((await fs.stat(path.join(cacheRoot, "r2"))).isDirectory()).toBe(true);
+	expect(result).toBe(expected);
+	expect(calls).toEqual([
+		{ localDiskServiceName: "r2:storage", pluginName: "r2", tmpPath },
+	]);
 });
