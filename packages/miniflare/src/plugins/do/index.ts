@@ -8,6 +8,10 @@ import {
 } from "../shared";
 import type { Worker_Binding } from "../../runtime";
 import type { Plugin } from "../shared";
+import {
+	DURABLE_OBJECTS_PLUGIN_NAME,
+	DURABLE_OBJECTS_STORAGE_SERVICE_NAME,
+} from "./constants";
 
 // Options for a container attached to the DO
 export const DOContainerOptionsSchema = z.object({
@@ -16,10 +20,10 @@ export const DOContainerOptionsSchema = z.object({
 export type DOContainerOptions = z.infer<typeof DOContainerOptionsSchema>;
 
 export { getDurableObjectUniqueKey } from "./namespaces";
-
-export const DURABLE_OBJECTS_PLUGIN_NAME = "do";
-
-export const DURABLE_OBJECTS_STORAGE_SERVICE_NAME = `${DURABLE_OBJECTS_PLUGIN_NAME}:storage`;
+export {
+	DURABLE_OBJECTS_PLUGIN_NAME,
+	DURABLE_OBJECTS_STORAGE_SERVICE_NAME,
+} from "./constants";
 
 export const DURABLE_OBJECTS_PLUGIN: Plugin = {
 	bindingTypeDescription: "Durable Object namespace",
