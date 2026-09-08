@@ -6,6 +6,22 @@ import { mockConsoleMethods } from "../../helpers/mock-console";
 describe("ProxyController", () => {
 	mockConsoleMethods();
 
+	test("does not stop for a disconnected client request", ({ expect }) => {
+		const bus = new FakeBus();
+		const controller = new ProxyController(bus);
+
+		controller.onProxyWorkerMessage({
+			type: "error",
+			error: {
+				name: "Error",
+				message: "Network connection lost.",
+				stack: "Error: Network connection lost.",
+			},
+		});
+
+		expect(bus.events).toEqual([]);
+	});
+
 	test("Runtime.exceptionThrown dispatches a typed runtimeError event", async ({
 		expect,
 	}) => {

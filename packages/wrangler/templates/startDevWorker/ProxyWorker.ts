@@ -26,6 +26,9 @@ type Request = Parameters<
 
 const LIVE_RELOAD_PROTOCOL = "WRANGLER_PROXYWORKER_LIVE_RELOAD_PROTOCOL";
 const LIVE_RELOAD_PATHNAME = "/cdn-cgi/live-reload";
+const MAX_NETWORK_CONNECTION_RETRIES = 1;
+const NETWORK_CONNECTION_LOST_MESSAGE = "Network connection lost.";
+const RETRY_AFTER_SECONDS = "0";
 export default {
 	fetch(req, env) {
 		const singleton = env.DURABLE_OBJECT.idFromName("");
@@ -44,6 +47,7 @@ export class ProxyWorker implements DurableObject {
 	proxyData?: ProxyData;
 	requestQueue = new Map<Request, DeferredPromise<Response>>();
 	requestRetryQueue = new Map<Request, DeferredPromise<Response>>();
+	networkConnectionRetries = new Map<Request, number>();
 
 	fetch(request: Request) {
 		if (isRequestForLiveReloadWebsocket(request)) {
@@ -166,6 +170,7 @@ export class ProxyWorker implements DurableObject {
 			// explicitly NOT await-ing this promise, we are in a loop and want to process the whole queue quickly + synchronously
 			void fetch(userWorkerUrl, new Request(request, { headers }))
 				.then(async (res) => {
+					this.networkConnectionRetries.delete(request);
 					res = new Response(res.body, res);
 					rewriteUrlRelatedHeaders(res.headers, innerUrl, outerUrl);
 
@@ -194,9 +199,34 @@ export class ProxyWorker implements DurableObject {
 					// UserWorker. isSameUserWorkerOrigin compares origin (not href) so a
 					// genuine error on a non-root path isn't misread as a reload — see
 					// its docs.
+					const targetsCurrentWorker = isSameUserWorkerOrigin(
+						userWorkerUrl,
+						this.proxyData?.userWorkerUrl
+					);
 					if (
-						isSameUserWorkerOrigin(userWorkerUrl, this.proxyData?.userWorkerUrl)
+						targetsCurrentWorker &&
+						error.message === NETWORK_CONNECTION_LOST_MESSAGE
 					) {
+						const retryCount = this.networkConnectionRetries.get(request) ?? 0;
+						if (
+							!request.signal.aborted &&
+							(request.method === "GET" || request.method === "HEAD") &&
+							retryCount < MAX_NETWORK_CONNECTION_RETRIES
+						) {
+							this.networkConnectionRetries.set(request, retryCount + 1);
+							this.requestRetryQueue.set(request, deferredResponse);
+							this.processQueue();
+							return;
+						}
+
+						this.networkConnectionRetries.delete(request);
+						deferredResponse.resolve(
+							new Response("The local connection was lost. Please try again.", {
+								status: 503,
+								headers: { "Retry-After": RETRY_AFTER_SECONDS },
+							})
+						);
+					} else if (targetsCurrentWorker) {
 						void sendMessageToProxyController(this.env, {
 							type: "error",
 							error: {
@@ -212,6 +242,7 @@ export class ProxyWorker implements DurableObject {
 
 					// if the request can be retried (subset of idempotent requests which have no body), requeue it
 					else if (request.method === "GET" || request.method === "HEAD") {
+						this.networkConnectionRetries.delete(request);
 						this.requestRetryQueue.set(request, deferredResponse);
 						// we would only end up here if the downstream UserWorker is chang*ing*
 						// i.e. we are in a `pause`d state and expecting a `play` message soon
@@ -227,12 +258,13 @@ export class ProxyWorker implements DurableObject {
 					// and would require cloning all body streams to avoid stream reuse (which is inefficient but not out of the question in the future)
 					// this is a good enough UX for now since it solves the most common GET use-case
 					else {
+						this.networkConnectionRetries.delete(request);
 						deferredResponse.resolve(
 							new Response(
 								"Your worker restarted mid-request. Please try sending the request again. Only GET or HEAD requests are retried automatically.",
 								{
 									status: 503,
-									headers: { "Retry-After": "0" },
+									headers: { "Retry-After": RETRY_AFTER_SECONDS },
 								}
 							)
 						);

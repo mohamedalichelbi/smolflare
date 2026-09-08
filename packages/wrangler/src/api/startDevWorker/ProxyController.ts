@@ -49,6 +49,8 @@ import type { StartDevWorkerOptions } from "./types";
 import type { DeferredPromise } from "./utils";
 import type { LogOptions, V4MiniflareOptions } from "miniflare";
 
+const NETWORK_CONNECTION_LOST_MESSAGE = "Network connection lost.";
+
 export class ProxyController extends Controller {
 	public ready = createDeferred<ReadyEvent>();
 
@@ -475,6 +477,11 @@ export class ProxyController extends Controller {
 
 				break;
 			case "error":
+				// Keep the session alive if an older proxy reports a canceled request.
+				if (message.error.message === NETWORK_CONNECTION_LOST_MESSAGE) {
+					logger.debug("[ProxyWorker] Client request disconnected");
+					break;
+				}
 				this.emitErrorEvent("Error inside ProxyWorker", message.error);
 
 				break;
