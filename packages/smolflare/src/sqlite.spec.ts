@@ -40,7 +40,7 @@ test("uses conservative remote SQLite defaults", async ({ expect }) => {
 			extensionPath: "/opt/lib/litestream-vfs.so",
 			replicaUrl: "s3://database-bucket/root/r2",
 			vfsName: "litestream",
-			syncInterval: "10s",
+			syncInterval: "1s",
 			pageCacheBytes: 10_485_760n,
 		},
 	});

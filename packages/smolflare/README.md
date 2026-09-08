@@ -22,7 +22,7 @@ const PAGE_CACHE_BYTES = 10 * 1024 * 1024;
 const sqliteStorage = new RemoteLtxSqliteStorage({
 	extensionPath: "/opt/smolflare/runtime/litestream-vfs.so",
 	replicaUrl: "s3://database-bucket/smolflare",
-	syncInterval: "10s",
+	syncInterval: "1s",
 	pageCacheBytes: PAGE_CACHE_BYTES,
 	cacheDirectory: "/var/cache/smolflare/sqlite",
 });
