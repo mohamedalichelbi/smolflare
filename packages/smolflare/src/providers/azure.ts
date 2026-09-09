@@ -64,19 +64,35 @@ export class AzureBlobStorage implements BlobStorage {
 					range?.start,
 					range === undefined ? undefined : range.end - range.start + 1
 				);
+			const body = result.readableStreamBody;
+			const contentRange = result.contentRange?.match(
+				/^bytes (\d+)-(\d+)\/(\d+)$/
+			);
+			const size =
+				range === undefined ? result.contentLength : Number(contentRange?.[3]);
+			const validRange =
+				range === undefined ||
+				(contentRange !== null &&
+					contentRange !== undefined &&
+					Number(contentRange[1]) === range.start &&
+					Number(contentRange[2]) === Math.min(range.end, Number(size) - 1) &&
+					result.contentLength === Number(contentRange[2]) - range.start + 1);
 			if (
-				result.readableStreamBody === undefined ||
-				result.contentLength === undefined
+				body === undefined ||
+				size === undefined ||
+				!Number.isSafeInteger(size) ||
+				size < 0 ||
+				result.contentLength === undefined ||
+				!Number.isSafeInteger(result.contentLength) ||
+				result.contentLength < 0 ||
+				!validRange
 			) {
-				throw new Error(`Azure returned an incomplete response for ${key}`);
-			}
-			const metadata = await this.head(key);
-			if (metadata === null) {
-				return null;
+				body?.destroy();
+				throw new Error(`Azure returned invalid download metadata for ${key}`);
 			}
 			return {
-				...metadata,
-				body: Readable.from(result.readableStreamBody),
+				size,
+				body: Readable.from(body),
 				contentLength: result.contentLength,
 				contentType: result.contentType,
 			};
