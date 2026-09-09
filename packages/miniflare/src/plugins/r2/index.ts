@@ -72,6 +72,10 @@ const SCRIPT_R2_CUSTOM_BLOB_STORAGE = `addEventListener("fetch", (event) => {
       ${CoreBindings.SERVICE_LOOPBACK}.fetch(request),
       bodyPump,
     ]);
+    if (request.method === "PUT" && !response.ok) {
+      await response.body?.cancel();
+      throw new Error("Blob upload failed with status " + response.status);
+    }
     return response;
   })());
 })`;

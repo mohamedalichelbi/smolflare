@@ -69,12 +69,14 @@ afterEach(async () => {
 	await Promise.all(runtimes.splice(0).map((runtime) => runtime.dispose()));
 });
 
-it("waits for external R2 blob writes", async ({ expect }) => {
-	const storage = new MemoryBlobStorage(100);
+function createRuntime(
+	fetch: (request: Request) => Promise<Response>,
+	contents: string
+): DisposableRuntime {
 	const runtime = new Miniflare({
 		r2BlobStorage: {
 			type: "custom",
-			fetch: createR2BlobFetcher(storage),
+			fetch,
 		},
 		workers: [
 			{
@@ -88,13 +90,7 @@ it("waits for external R2 blob writes", async ({ expect }) => {
 						modules: {
 							"index.mjs": {
 								type: "esm",
-								contents: `export default {
-									async fetch(request, env) {
-										await env.BUCKET.put("greeting", "hello from Smolflare");
-										const object = await env.BUCKET.get("greeting");
-										return new Response(await object.text());
-									}
-								}`,
+								contents,
 							},
 						},
 					},
@@ -109,6 +105,21 @@ it("waits for external R2 blob writes", async ({ expect }) => {
 		],
 	});
 	runtimes.push(runtime);
+	return runtime;
+}
+
+it("waits for external R2 blob writes", async ({ expect }) => {
+	const storage = new MemoryBlobStorage(100);
+	const runtime = createRuntime(
+		createR2BlobFetcher(storage),
+		`export default {
+		async fetch(request, env) {
+			await env.BUCKET.put("greeting", "hello from Smolflare");
+			const object = await env.BUCKET.get("greeting");
+			return new Response(await object.text());
+		}
+	}`
+	);
 
 	const response = await runtime.dispatchFetch("http://localhost");
 
@@ -122,3 +133,40 @@ it("waits for external R2 blob writes", async ({ expect }) => {
 	expect(key).toMatch(/^blueprints\/blobs\/[0-9a-f]{80}$/);
 	expect(body.toString()).toBe("hello from Smolflare");
 });
+
+it.for(["response", "exception"])(
+	"rejects a failed blob upload (%s) without storing metadata",
+	async (failure, { expect }) => {
+		let uploads = 0;
+		const runtime = createRuntime(
+			async (request) => {
+				if (request.method !== "PUT")
+					return new Response(null, { status: 404 });
+				await request.arrayBuffer();
+				uploads++;
+				if (failure === "exception") throw new Error("Bucket upload failed");
+				return new Response(null, { status: 503 });
+			},
+			`export default {
+			async fetch(request, env) {
+				let rejected = false;
+				try {
+					await env.BUCKET.put("greeting", "lost value");
+				} catch {
+					rejected = true;
+				}
+				return Response.json({
+					rejected,
+					objectExists: await env.BUCKET.head("greeting") !== null,
+				});
+			}
+		}`
+		);
+		const response = await runtime.dispatchFetch("http://localhost");
+		expect(await response.json()).toEqual({
+			rejected: true,
+			objectExists: false,
+		});
+		expect(uploads).toBe(1);
+	}
+);
