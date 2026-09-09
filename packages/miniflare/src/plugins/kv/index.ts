@@ -16,6 +16,7 @@ import {
 	remoteProxyClientWorker,
 	SERVICE_LOOPBACK,
 } from "../shared";
+import { getBlobStorageService } from "../shared/blob-storage";
 import { KV_PLUGIN_NAME } from "./constants";
 import {
 	getSitesBindings,
@@ -152,6 +153,9 @@ export const KV_PLUGIN: Plugin = {
 				tmpPath,
 				sharedOptions
 			);
+			const blobService = await getBlobStorageService("kv", sharedOptions);
+			const blobServiceName = blobService?.name ?? KV_STORAGE_SERVICE_NAME;
+			if (blobService !== undefined) services.push(blobService);
 			const objectService: Service = {
 				name: SERVICE_NAMESPACE_PREFIX,
 				worker: {
@@ -172,7 +176,7 @@ export const KV_PLUGIN: Plugin = {
 					bindings: [
 						{
 							name: SharedBindings.MAYBE_SERVICE_BLOBS,
-							service: { name: KV_STORAGE_SERVICE_NAME },
+							service: { name: blobServiceName },
 						},
 						{
 							name: SharedBindings.MAYBE_SERVICE_LOOPBACK,

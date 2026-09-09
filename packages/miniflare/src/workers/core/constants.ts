@@ -29,7 +29,7 @@ export const CorePaths = {
 export const CoreHeaders = {
 	CUSTOM_FETCH_SERVICE: "MF-Custom-Fetch-Service",
 	CUSTOM_NODE_SERVICE: "MF-Custom-Node-Service",
-	R2_BLOB_STORAGE: "MF-R2-Blob-Storage",
+	BLOB_STORAGE: "MF-Blob-Storage",
 	ORIGINAL_URL: "MF-Original-URL",
 	/**
 	 * Stores the original hostname when using the `upstream` option.

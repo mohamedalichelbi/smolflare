@@ -680,6 +680,17 @@ export type ParsedWorkerOptions = z.output<typeof WorkerOptionsSchema>;
 //  Instance-wide options
 // ---------------------------------------------------------------------------
 
+const BlobStorageSchema = z.custom<R2BlobStorage>(
+	(value) =>
+		typeof value === "object" &&
+		value !== null &&
+		(("type" in value && value.type === "fs") ||
+			("type" in value &&
+				value.type === "custom" &&
+				"fetch" in value &&
+				typeof value.fetch === "function"))
+);
+
 export const InstanceOptionsSchema = z.strictObject({
 	// Server
 	host: z.string().optional(),
@@ -731,18 +742,9 @@ export const InstanceOptionsSchema = z.strictObject({
 	/** Project temp directory for plugin files; relative to cwd if not absolute. */
 	resourceTmpPath: z.string().optional(),
 	/** Blob-body backend for local R2 buckets. Defaults to the filesystem. */
-	r2BlobStorage: z
-		.custom<R2BlobStorage>(
-			(value) =>
-				typeof value === "object" &&
-				value !== null &&
-				(("type" in value && value.type === "fs") ||
-					("type" in value &&
-						value.type === "custom" &&
-						"fetch" in value &&
-						typeof value.fetch === "function"))
-		)
-		.optional(),
+	r2BlobStorage: BlobStorageSchema.optional(),
+	/** Blob-body backend for local KV namespaces. Use a separate prefix from R2. */
+	kvBlobStorage: BlobStorageSchema.optional(),
 	/** Optional SQLite backend for local Durable Object-backed services. */
 	sqliteStorage: z
 		.custom<SqliteStorageBackend>(

@@ -3,7 +3,7 @@ import SCRIPT_R2_BUCKET_OBJECT from "worker:r2/bucket";
 import SCRIPT_R2_PUBLIC from "worker:r2/public";
 import SCRIPT_R2_S3 from "worker:r2/s3/index";
 import { MiniflareCoreError } from "../../shared";
-import { CoreBindings, CoreHeaders, SharedBindings } from "../../workers";
+import { SharedBindings } from "../../workers";
 import {
 	R2_LOCAL_ENTRY_SERVICE_NAME,
 	R2S3Bindings,
@@ -21,8 +21,8 @@ import {
 	ProxyNodeBinding,
 	remoteProxyClientWorker,
 	SERVICE_LOOPBACK,
-	WORKER_BINDING_SERVICE_LOOPBACK,
 } from "../shared";
+import { getBlobStorageService } from "../shared/blob-storage";
 import type {
 	Service,
 	Worker_Binding,
@@ -44,7 +44,6 @@ type R2S3Credentials = NonNullable<
 
 export const R2_PLUGIN_NAME = "r2";
 const R2_STORAGE_SERVICE_NAME = `${R2_PLUGIN_NAME}:storage`;
-const R2_BLOB_STORAGE_SERVICE_NAME = `${R2_PLUGIN_NAME}:blob-storage`;
 const R2_BUCKET_SERVICE_PREFIX = `${R2_PLUGIN_NAME}:bucket`;
 // One shared remote-proxy service for all remote R2 buckets (config via props).
 const R2_REMOTE_SERVICE_NAME = `${R2_PLUGIN_NAME}:bucket:remote`;
@@ -55,30 +54,6 @@ const R2_BUCKET_OBJECT: Worker_Binding_DurableObjectNamespaceDesignator = {
 	serviceName: R2_BUCKET_SERVICE_PREFIX,
 	className: R2_BUCKET_OBJECT_CLASS_NAME,
 };
-
-const SCRIPT_R2_CUSTOM_BLOB_STORAGE = `addEventListener("fetch", (event) => {
-  event.respondWith((async () => {
-    let body;
-    let bodyPump = Promise.resolve();
-    if (event.request.body !== null) {
-      const stream = new TransformStream();
-      bodyPump = event.request.body.pipeTo(stream.writable);
-      body = stream.readable;
-    }
-    const request = new Request(event.request, { body });
-    request.headers.set("${CoreHeaders.R2_BLOB_STORAGE}", "true");
-    request.headers.set("${CoreHeaders.ORIGINAL_URL}", request.url);
-    const [response] = await Promise.all([
-      ${CoreBindings.SERVICE_LOOPBACK}.fetch(request),
-      bodyPump,
-    ]);
-    if (request.method === "PUT" && !response.ok) {
-      await response.body?.cancel();
-      throw new Error("Blob upload failed with status " + response.status);
-    }
-    return response;
-  })());
-})`;
 
 export function getR2PublicService(
 	allWorkerOpts: ParsedWorkerOptions[],
@@ -263,27 +238,10 @@ export const R2_PLUGIN: Plugin = {
 				tmpPath,
 				sharedOptions
 			);
-			let blobStorageServiceName = R2_STORAGE_SERVICE_NAME;
-			const blobStorage = sharedOptions.r2BlobStorage;
-			if (blobStorage?.type === "fs" && blobStorage.path !== undefined) {
-				await fs.mkdir(blobStorage.path, { recursive: true });
-				blobStorageServiceName = R2_BLOB_STORAGE_SERVICE_NAME;
-				services.push({
-					name: blobStorageServiceName,
-					disk: { path: blobStorage.path, writable: true },
-				});
-			} else if (blobStorage?.type === "custom") {
-				blobStorageServiceName = R2_BLOB_STORAGE_SERVICE_NAME;
-				services.push({
-					name: blobStorageServiceName,
-					worker: {
-						compatibilityDate: "2025-08-04",
-						compatibilityFlags: ["connect_pass_through"],
-						serviceWorkerScript: SCRIPT_R2_CUSTOM_BLOB_STORAGE,
-						bindings: [WORKER_BINDING_SERVICE_LOOPBACK],
-					},
-				});
-			}
+			const blobService = await getBlobStorageService("r2", sharedOptions);
+			const blobStorageServiceName =
+				blobService?.name ?? R2_STORAGE_SERVICE_NAME;
+			if (blobService !== undefined) services.push(blobService);
 			const objectService: Service = {
 				name: R2_BUCKET_SERVICE_PREFIX,
 				worker: {

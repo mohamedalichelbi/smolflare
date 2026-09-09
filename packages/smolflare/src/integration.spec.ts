@@ -71,7 +71,8 @@ afterEach(async () => {
 
 function createRuntime(
 	fetch: (request: Request) => Promise<Response>,
-	contents: string
+	contents: string,
+	options?: Record<string, unknown>
 ): DisposableRuntime {
 	const runtime = new Miniflare({
 		r2BlobStorage: {
@@ -95,6 +96,7 @@ function createRuntime(
 						},
 					},
 					env: {
+						KV: { type: "kv", id: "blueprints" },
 						BUCKET: {
 							type: "r2",
 							name: "blueprints",
@@ -103,6 +105,7 @@ function createRuntime(
 				},
 			},
 		],
+		...options,
 	});
 	runtimes.push(runtime);
 	return runtime;
@@ -133,6 +136,77 @@ it("waits for external R2 blob writes", async ({ expect }) => {
 	expect(key).toMatch(/^blueprints\/blobs\/[0-9a-f]{80}$/);
 	expect(body.toString()).toBe("hello from Smolflare");
 });
+
+it("stores KV bodies through the remote blob backend", async ({ expect }) => {
+	const storage = new MemoryBlobStorage(100);
+	const runtime = createRuntime(
+		createR2BlobFetcher(storage, { prefix: "r2" }),
+		`export default {
+		async fetch(request, env) {
+			await env.BUCKET.put("greeting", "r2 value");
+			await env.KV.put("greeting", "kv value", {metadata: {version: 1}});
+			const first = await env.KV.getWithMetadata("greeting");
+			await env.KV.put("greeting", "new value");
+			const updated = await env.KV.get("greeting");
+			await env.KV.delete("greeting");
+			const deleted = await env.KV.get("greeting");
+			const r2 = await (await env.BUCKET.get("greeting")).text();
+			return Response.json({first, updated, deleted, r2});
+		}
+	}`,
+		{
+			kvBlobStorage: {
+				type: "custom",
+				fetch: createR2BlobFetcher(storage, { prefix: "kv" }),
+			},
+		}
+	);
+	const response = await runtime.dispatchFetch("http://localhost");
+	expect(await response.json()).toMatchObject({
+		first: { value: "kv value", metadata: { version: 1 } },
+		updated: "new value",
+		deleted: null,
+		r2: "r2 value",
+	});
+	expect(
+		[...storage.objects.keys()].some((key) =>
+			key.startsWith("kv/blueprints/blobs/")
+		)
+	).toBe(true);
+	expect(
+		[...storage.objects.keys()].some((key) =>
+			key.startsWith("r2/blueprints/blobs/")
+		)
+	).toBe(true);
+});
+
+it.for(["response", "exception"])(
+	"rejects failed KV uploads (%s) without metadata",
+	async (failure, { expect }) => {
+		const fetch = async (request: Request) => {
+			if (request.method === "PUT") {
+				await request.arrayBuffer();
+				if (failure === "exception") throw new Error("Bucket upload failed");
+				return new Response(null, { status: 503 });
+			}
+			return new Response(null, { status: 404 });
+		};
+		const runtime = createRuntime(
+			fetch,
+			`export default {
+		async fetch(request, env) {
+			const store = env.KV;
+			let rejected = false;
+			try { await store.put("greeting", "lost"); } catch { rejected = true; }
+			return Response.json({rejected, value: await store.get("greeting")});
+		}
+	}`,
+			{ kvBlobStorage: { type: "custom", fetch } }
+		);
+		const response = await runtime.dispatchFetch("http://localhost");
+		expect(await response.json()).toEqual({ rejected: true, value: null });
+	}
+);
 
 it.for(["response", "exception"])(
 	"rejects a failed blob upload (%s) without storing metadata",

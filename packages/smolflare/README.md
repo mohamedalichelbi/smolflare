@@ -153,9 +153,21 @@ const mf = new Miniflare({
 
 ## Backup and deletion
 
-Remote object bodies are not a complete R2 backup. SQLite maps application keys
-to opaque blob identifiers, so back up the local R2 SQLite directory and the
-remote bucket as one recovery set.
+KV bodies use a separate `kvBlobStorage` option. The same backend classes work
+with this option. Use separate prefixes when KV and R2 share a bucket:
+
+```ts
+const mf = new Miniflare({
+	r2BlobStorage: new R2BucketGCS({ bucket: "worker-blobs", prefix: "r2" }),
+	kvBlobStorage: new R2BucketGCS({ bucket: "worker-blobs", prefix: "kv" }),
+	workers,
+});
+```
+
+Remote SQLite alone does not store KV or R2 bodies. Remote bodies alone do not
+store their metadata. Preserve both SQLite state and the referenced bodies as
+one recovery set. When you change a local body backend to a remote backend,
+copy the existing bodies first; changing the option does not migrate them.
 
 All remote implementations accept `prefix` and `retainDeleted`. Retaining
 deleted blobs allows an older SQLite point-in-time restore to resolve the blob

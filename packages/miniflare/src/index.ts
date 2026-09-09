@@ -1623,9 +1623,13 @@ export class Miniflare {
 			const customFetchService = request.headers.get(
 				CoreHeaders.CUSTOM_FETCH_SERVICE
 			);
-			if (request.headers.has(CoreHeaders.R2_BLOB_STORAGE)) {
-				request.headers.delete(CoreHeaders.R2_BLOB_STORAGE);
-				const storage = this.#sharedOpts.r2BlobStorage;
+			if (request.headers.has(CoreHeaders.BLOB_STORAGE)) {
+				const storageKey = request.headers.get(CoreHeaders.BLOB_STORAGE);
+				request.headers.delete(CoreHeaders.BLOB_STORAGE);
+				assert(
+					storageKey === "r2BlobStorage" || storageKey === "kvBlobStorage"
+				);
+				const storage = this.#sharedOpts[storageKey];
 				assert(storage?.type === "custom");
 				const result = await storage.fetch(request);
 				response =
