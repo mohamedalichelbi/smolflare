@@ -9,3 +9,7 @@ run = "pnpm --filter smolflare build"
 [tasks.smolflare-test]
 description = "Test the Smolflare package"
 run = "pnpm --filter smolflare test"
+
+[tasks.smolflare-package-test]
+description = "Build and type-check an installed Smolflare tarball"
+run = "pnpm --filter smolflare test:package"

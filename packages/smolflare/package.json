@@ -13,10 +13,12 @@
 		"dist"
 	],
 	"main": "dist/index.js",
+	"types": "dist/index.d.ts",
 	"scripts": {
-		"build": "node -r esbuild-register tools/build.ts",
+		"build": "node -r esbuild-register tools/build.ts && tsc -p tsconfig.build.json",
 		"check:type": "tsc",
 		"test": "vitest run",
+		"test:package": "pnpm run build && node -r esbuild-register tools/test-package.ts",
 		"test:ci": "vitest run"
 	},
 	"dependencies": {
@@ -26,6 +28,7 @@
 		"@google-cloud/storage": "7.22.0"
 	},
 	"devDependencies": {
+		"@cloudflare/workers-utils": "workspace:*",
 		"@types/node": "catalog:default",
 		"esbuild": "catalog:default",
 		"esbuild-register": "^3.5.0",
